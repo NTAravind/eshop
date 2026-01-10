@@ -1,0 +1,672 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+////////////////////
+/// ENUMS
+////////////////////
+
+enum StoreRole {
+  OWNER
+  MANAGER
+  SUPPORT
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  STRIPE
+  RAZORPAY
+  MANUAL
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum DiscountScope {
+  STORE_WIDE
+  CATEGORY
+  PRODUCT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+////////////////////
+/// USERS (Auth.js)
+////////////////////
+
+model User {
+  id               String           @id @default(cuid())
+  email            String           @unique
+  name             String?
+  image            String?
+  createdAt        DateTime         @default(now())
+  billingAddresses BillingAddress[]
+  accounts         Account[]
+  sessions         Session[]
+  stores           StoreStaff[]
+  discountUsages   DiscountUsage[]
+  ownedAccounts    AccountUser[]
+}
+
+model BillingAddress {
+  id         String   @id @default(cuid())
+  userId     String
+  address1   String
+  address2   String?
+  city       String
+  state      String
+  postalCode String
+  country    String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                String @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+////////////////////
+/// ACCOUNTS (ORGANIZATIONS)
+////////////////////
+
+model BillingAccount {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        AccountUser[]
+  stores       Store[]
+  subscription AccountSubscription?
+  usage        UsageCounter[]
+  invoices     Invoice[]
+
+  @@index([createdAt])
+}
+
+model AccountUser {
+  id        String   @id @default(cuid())
+  accountId String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  account BillingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, userId])
+  @@index([accountId])
+  @@index([userId])
+}
+
+////////////////////
+/// SUBSCRIPTION PLANS
+////////////////////
+
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  type        PlanType @unique
+  name        String
+  description String?
+  price       Int
+
+  maxStores              Int?
+  maxProducts            Int?
+  maxOrdersPerMonth      Int?
+  maxStaffMembers        Int?
+  maxAPIRequestsPerMonth Int?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions AccountSubscription[]
+
+  @@index([type])
+  @@index([isActive])
+  
+}
+
+////////////////////
+/// ACCOUNT SUBSCRIPTIONS
+////////////////////
+
+model AccountSubscription {
+  id        String             @id @default(cuid())
+  accountId String             @unique
+  planId    String
+  status    SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+
+  cancelAtPeriodEnd Boolean @default(false)
+  canceledAt        DateTime?
+
+  trialEndsAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account BillingAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  plan    SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  @@index([accountId])
+  @@index([planId])
+  @@index([status])
+  @@index([currentPeriodEnd])
+   @@index([currentPeriodEnd, status]) // Find expiring active subscriptions
+  @@index([status, currentPeriodEnd, cancelAtPeriodEnd]) // Renewal processing
+  @@index([planId, status]) // Plan usage analytics
+}
+
+////////////////////
+/// USAGE TRACKING
+////////////////////
+
+model UsageCounter {
+  id        String   @id @default(cuid())
+  accountId String
+  
+  periodStart DateTime
+  periodEnd   DateTime
+
+  storeCount      Int @default(0)
+  productCount    Int @default(0)
+  orderCount      Int @default(0)
+  staffCount      Int @default(0)
+  apiRequestCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account BillingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, periodStart])
+  @@index([accountId, periodStart, periodEnd])
+  @@index([periodEnd])
+    @@index([accountId, periodEnd]) // Find expiring periods
+  @@index([periodEnd, accountId]) // Cleanup old counters
+}
+
+////////////////////
+/// INVOICES
+////////////////////
+
+model Invoice {
+  id        String   @id @default(cuid())
+  accountId String
+  
+  amount   Int
+  currency String @default("INR")
+  
+  periodStart DateTime
+  periodEnd   DateTime
+  
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  paymentId     String?
+  
+  createdAt DateTime @default(now())
+
+  account BillingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([status])
+  @@index([createdAt])
+   @@index([accountId, status, createdAt]) // Account invoice list
+  @@index([status, createdAt]) // Process pending invoices
+  @@index([accountId, periodStart, periodEnd]) // Find invoice by period
+  @@index([paymentId]) // Webhook payment matching
+}
+
+////////////////////
+/// STORES (TENANTS)
+////////////////////
+
+model Store {
+  id        String   @id @default(cuid())
+  accountId String
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  
+  account        BillingAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  staff          StoreStaff[]
+  products       Product[]
+  orders         Order[]
+  payments       Payment[]
+  apiKeys        ApiKey[]
+  paymentConfigs PaymentConfig[]
+  categories     Category[]
+  facets         Facet[]
+  discounts      Discount[]
+
+  @@index([slug])
+  @@index([accountId])
+}
+
+////////////////////
+/// STORE STAFF (RBAC)
+////////////////////
+
+model StoreStaff {
+  id        String    @id @default(cuid())
+  storeId   String
+  userId    String
+  role      StoreRole
+  createdAt DateTime  @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, userId])
+  @@index([storeId])
+  @@index([userId])
+}
+
+////////////////////
+/// PRODUCTS
+////////////////////
+
+model Product {
+  id          String    @id @default(cuid())
+  storeId     String
+  categoryId  String?
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  store    Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category Category?           @relation(fields: [categoryId], references: [id])
+  variants ProductVariant[]
+  images   Image[]
+  facets   ProductFacetValue[]
+
+  discountProducts DiscountProduct[]
+
+  @@index([storeId, deletedAt])
+  @@index([categoryId])
+  @@index([storeId, isActive, deletedAt])
+  
+}
+
+model ProductVariant {
+  id        String    @id @default(cuid())
+  productId String
+  sku       String
+  price     Int
+  stock     Int
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images  Image[]
+  facets  VariantFacetValue[]
+
+  orderLines OrderLine[]
+
+  @@index([productId, deletedAt])
+  @@index([sku, deletedAt])
+  @@index([productId, isActive, deletedAt])
+  @@index([stock])
+  @@unique([sku, deletedAt])
+   @@index([productId, isActive, stock, deletedAt]) // Filter available variants
+  @@index([stock, isActive, deletedAt]) // Find low stock items
+  @@index([sku, isActive, deletedAt]) // SKU lookups for active items
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  productId String?
+  variantId String?
+
+  product Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([variantId])
+}
+
+model Facet {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  code      String
+  createdAt DateTime @default(now())
+
+  store  Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  values FacetValue[]
+
+  @@unique([storeId, code])
+  @@index([storeId])
+}
+
+model FacetValue {
+  id      String @id @default(cuid())
+  facetId String
+  value   String
+
+  facet Facet @relation(fields: [facetId], references: [id], onDelete: Cascade)
+
+  productLinks ProductFacetValue[]
+  variantLinks VariantFacetValue[]
+
+  @@index([facetId])
+}
+
+model ProductFacetValue {
+  productId    String
+  facetValueId String
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  facetValue FacetValue @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
+
+  @@id([productId, facetValueId])
+}
+
+model VariantFacetValue {
+  variantId    String
+  facetValueId String
+
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  facetValue FacetValue     @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, facetValueId])
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  storeId   String
+  name      String
+  slug      String
+  parentId  String?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  store    Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  products Product[]
+
+  discountCategories DiscountCategory[]
+
+  @@index([storeId, deletedAt])
+  @@index([parentId])
+  @@unique([storeId, slug, deletedAt])
+}
+
+////////////////////
+/// DISCOUNTS & OFFERS
+////////////////////
+
+model Discount {
+  id          String        @id @default(cuid())
+  storeId     String
+  code        String?
+  name        String
+  description String?
+  type        DiscountType
+  value       Int
+  scope       DiscountScope
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  maxUsageCount   Int?
+  maxUsagePerUser Int?
+  minOrderValue   Int?
+  isStackable     Boolean @default(false)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  products   DiscountProduct[]
+  categories DiscountCategory[]
+  usages     DiscountUsage[]
+  orders     OrderDiscount[]
+
+  @@unique([storeId, code])
+  @@index([storeId, isActive, startsAt, endsAt])
+  @@index([storeId, code])
+  @@index([startsAt, endsAt])
+   @@index([storeId, code, isActive]) // Fast coupon validation
+ 
+  @@index([storeId, scope, isActive]) // Filter by scope
+  @@index([endsAt, isActive]) // Cleanup expired discounts
+}
+
+model DiscountProduct {
+  discountId String
+  productId  String
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, productId])
+  @@index([productId])
+}
+
+model DiscountCategory {
+  discountId String
+  categoryId String
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, categoryId])
+  @@index([categoryId])
+}
+
+model DiscountUsage {
+  id         String   @id @default(cuid())
+  discountId String
+  userId     String?
+  orderId    String
+  usedAt     DateTime @default(now())
+
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([discountId])
+  @@index([userId])
+  @@index([orderId])
+  @@index([discountId, userId]) // Per-user usage count
+  @@index([discountId, usedAt]) // Usage over time
+  @@index([userId, usedAt]) // User discount history
+}
+
+////////////////////
+/// ORDERS
+////////////////////
+
+model Order {
+  id             String      @id @default(cuid())
+  storeId        String
+  userId         String?
+  subtotal       Int
+  discountAmount Int         @default(0)
+  total          Int
+  currency       String      @default("INR")
+  status         OrderStatus
+  createdAt      DateTime    @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  lines     OrderLine[]
+  payments  Payment[]
+  discounts OrderDiscount[]
+
+  @@index([storeId, createdAt])
+  @@index([userId])
+  @@index([storeId, status])
+  @@index([createdAt])
+    @@index([storeId, userId, createdAt]) // User's order history
+  @@index([storeId, status, createdAt]) // Status filtering with time
+  @@index([userId, createdAt]) // User order list across stores
+  @@index([storeId, createdAt, status]) // Covering index for common queries
+}
+
+model OrderLine {
+  orderId   String
+  variantId String
+  quantity  Int
+  price     Int
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@id([orderId, variantId])
+  @@index([variantId])
+  
+}
+
+model OrderDiscount {
+  orderId    String
+  discountId String
+  amount     Int
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  discount Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  @@id([orderId, discountId])
+  @@index([discountId])
+}
+
+////////////////////
+/// PAYMENTS
+////////////////////
+
+model Payment {
+  id                String          @id @default(cuid())
+  orderId           String
+  storeId           String
+  provider          PaymentProvider
+  amount            Int
+  currency          String          @default("INR")
+  status            PaymentStatus   @default(PENDING)
+  idempotencyKey    String?         @unique
+  providerPaymentId String?         @unique
+  createdAt         DateTime        @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([orderId])
+  @@index([storeId, status])
+  @@index([createdAt])
+  @@index([idempotencyKey])
+  @@index([providerPaymentId])
+   @@index([storeId, createdAt]) // List payments by store with time sorting
+  @@index([storeId, provider, status]) // Filter by provider and status
+  @@index([providerPaymentId, storeId]) // Webhook lookups (compound for tenant isolation)
+  @@index([storeId, provider, createdAt]) // Analytics queries
+}
+
+model PaymentConfig {
+  id            String          @id @default(cuid())
+  storeId       String
+  provider      PaymentProvider
+  apiKey        String
+  apiSecret     String?
+  webhookSecret String?
+  isLive        Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, provider])
+  @@index([storeId, isActive])
+}
+
+////////////////////
+/// API KEYS (EXTERNAL APPS)
+////////////////////
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  keyId      String    @unique
+  keyHash    String
+  storeId    String
+  name       String?
+  scopes     String[]
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([keyId])
+    @@index([storeId, revokedAt]) // List active keys
+  @@index([storeId, lastUsedAt]) // Sort by usage
+  @@index([keyId, revokedAt]) // Fast validation with revocation check
+}
