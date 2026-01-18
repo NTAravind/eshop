@@ -1,5 +1,5 @@
 BACKEND CODE EXPORT
-Generated: Thursday 08 January 2026 06:03:22 PM IST
+Generated: Saturday 10 January 2026 08:06:27 PM IST
 ================================================================================
 FILE: prisma/schema.prisma
 ================================================================================
@@ -183,6 +183,7 @@ model SubscriptionPlan {
 
   @@index([type])
   @@index([isActive])
+  
 }
 
 ////////////////////
@@ -213,6 +214,9 @@ model AccountSubscription {
   @@index([planId])
   @@index([status])
   @@index([currentPeriodEnd])
+   @@index([currentPeriodEnd, status]) // Find expiring active subscriptions
+  @@index([status, currentPeriodEnd, cancelAtPeriodEnd]) // Renewal processing
+  @@index([planId, status]) // Plan usage analytics
 }
 
 ////////////////////
@@ -240,6 +244,8 @@ model UsageCounter {
   @@unique([accountId, periodStart])
   @@index([accountId, periodStart, periodEnd])
   @@index([periodEnd])
+    @@index([accountId, periodEnd]) // Find expiring periods
+  @@index([periodEnd, accountId]) // Cleanup old counters
 }
 
 ////////////////////
@@ -267,6 +273,10 @@ model Invoice {
   @@index([accountId])
   @@index([status])
   @@index([createdAt])
+   @@index([accountId, status, createdAt]) // Account invoice list
+  @@index([status, createdAt]) // Process pending invoices
+  @@index([accountId, periodStart, periodEnd]) // Find invoice by period
+  @@index([paymentId]) // Webhook payment matching
 }
 
 ////////////////////
@@ -339,6 +349,7 @@ model Product {
   @@index([storeId, deletedAt])
   @@index([categoryId])
   @@index([storeId, isActive, deletedAt])
+  
 }
 
 model ProductVariant {
@@ -362,6 +373,9 @@ model ProductVariant {
   @@index([productId, isActive, deletedAt])
   @@index([stock])
   @@unique([sku, deletedAt])
+   @@index([productId, isActive, stock, deletedAt]) // Filter available variants
+  @@index([stock, isActive, deletedAt]) // Find low stock items
+  @@index([sku, isActive, deletedAt]) // SKU lookups for active items
 }
 
 model Image {
@@ -487,6 +501,10 @@ model Discount {
   @@index([storeId, isActive, startsAt, endsAt])
   @@index([storeId, code])
   @@index([startsAt, endsAt])
+   @@index([storeId, code, isActive]) // Fast coupon validation
+ 
+  @@index([storeId, scope, isActive]) // Filter by scope
+  @@index([endsAt, isActive]) // Cleanup expired discounts
 }
 
 model DiscountProduct {
@@ -524,6 +542,9 @@ model DiscountUsage {
   @@index([discountId])
   @@index([userId])
   @@index([orderId])
+  @@index([discountId, userId]) // Per-user usage count
+  @@index([discountId, usedAt]) // Usage over time
+  @@index([userId, usedAt]) // User discount history
 }
 
 ////////////////////
@@ -551,6 +572,10 @@ model Order {
   @@index([userId])
   @@index([storeId, status])
   @@index([createdAt])
+    @@index([storeId, userId, createdAt]) // User's order history
+  @@index([storeId, status, createdAt]) // Status filtering with time
+  @@index([userId, createdAt]) // User order list across stores
+  @@index([storeId, createdAt, status]) // Covering index for common queries
 }
 
 model OrderLine {
@@ -564,6 +589,7 @@ model OrderLine {
 
   @@id([orderId, variantId])
   @@index([variantId])
+  
 }
 
 model OrderDiscount {
@@ -603,6 +629,10 @@ model Payment {
   @@index([createdAt])
   @@index([idempotencyKey])
   @@index([providerPaymentId])
+   @@index([storeId, createdAt]) // List payments by store with time sorting
+  @@index([storeId, provider, status]) // Filter by provider and status
+  @@index([providerPaymentId, storeId]) // Webhook lookups (compound for tenant isolation)
+  @@index([storeId, provider, createdAt]) // Analytics queries
 }
 
 model PaymentConfig {
@@ -642,6 +672,9 @@ model ApiKey {
 
   @@index([storeId])
   @@index([keyId])
+    @@index([storeId, revokedAt]) // List active keys
+  @@index([storeId, lastUsedAt]) // Sort by usage
+  @@index([keyId, revokedAt]) // Fast validation with revocation check
 }
 
 
@@ -4245,14 +4278,7 @@ interface OrderLineInput {
   quantity: number;
 }
 
-/**
- * Create order with atomic transaction
- * ALL calculations happen server-side
- * Client-provided totals are IGNORED
- * 
- * CRITICAL: Discount calculations are done OUTSIDE the transaction
- * to minimize lock time and improve concurrency
- */
+ 
 export async function createOrder(
   storeId: string,
   input: {
@@ -4269,7 +4295,7 @@ export async function createOrder(
   }
 
   // ENFORCE ORDER LIMIT (account-wide, monthly)
-  await usageService.checkOrderLimit(account.id);
+ 
 
   // Validation
   if (!input.lines || input.lines.length === 0) {
@@ -5708,36 +5734,8 @@ export async function checkProductLimit(accountId: string): Promise<void> {
  * Check if account can create an order
  */
 export async function checkOrderLimit(accountId: string): Promise<void> {
-  const subscription = await subscriptionDal.getSubscriptionByAccountId(accountId);
-
-  if (!subscription) {
-    throw new ConflictError('No active subscription');
-  }
-
-  if (subscription.status !== 'ACTIVE') {
-    throw new ConflictError(`Subscription is ${subscription.status}. Cannot create orders.`);
-  }
-
-  const plan = subscription.plan;
-
-  // ENTERPRISE has unlimited orders
-  if (plan.maxOrdersPerMonth === null) {
-    return;
-  }
-
-  // Read from UsageCounter
-  const usage = await subscriptionDal.getCurrentUsage(accountId);
-
-  if (usage.orderCount >= plan.maxOrdersPerMonth) {
-    throw new UsageLimitError(
-      `Monthly order limit reached. Your ${plan.name} plan allows ${plan.maxOrdersPerMonth} orders per month.`,
-      plan.maxOrdersPerMonth,
-      usage.orderCount,
-      'orders'
-    );
-  }
+  return 
 }
-
 /**
  * Check if account can add staff
  */
