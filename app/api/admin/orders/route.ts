@@ -1,6 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as orderService from '@/services/order.service';
+
+export const dynamic = 'force-dynamic';
 import { hasWriteScope } from '@/services/apiKey.service';
 import { OrderStatus } from '@/app/generated/prisma';
 import { toErrorResponse } from '@/lib/errors';
@@ -29,7 +32,7 @@ export async function POST(req: NextRequest) {
     // All calculations happen server-side in orderService
 
     const order = await orderService.createOrder(
-      tenant.storeId, 
+      tenant.storeId,
       {
         userId: body.userId || tenant.userId,
         lines: body.lines,

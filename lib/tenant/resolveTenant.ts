@@ -15,9 +15,12 @@ export interface TenantContext {
  * 1. API key (Authorization header)
  * 2. User session + X-Store-Id header
  * 
- * This is the single source of truth for multi-tenancy
+ * Hierarchical access control:
+ * - SuperAdmin: Access to any store
+ * - Tenant Admin (AccountUser OWNER): Access to stores in their account
+ * - Store Staff: Access to stores they're assigned to
  */
-export async function resolveTenant(): Promise<TenantContext> {
+export async function resolveTenant(storeIdParam?: string): Promise<TenantContext> {
   const headersList = await headers();
   const authHeader = headersList.get('authorization');
 
@@ -25,7 +28,7 @@ export async function resolveTenant(): Promise<TenantContext> {
   if (authHeader) {
     try {
       const apiKeyContext = await validateApiKey(authHeader);
-      
+
       if (apiKeyContext) {
         return {
           storeId: apiKeyContext.storeId,
@@ -40,22 +43,42 @@ export async function resolveTenant(): Promise<TenantContext> {
 
   // Priority 2: User session
   const session = await auth();
-  
+
   if (!session?.user?.id) {
     throw new Error('Authentication required. Provide either API key or valid session.');
   }
 
   const userId = session.user.id;
 
-  // Get storeId from header
-  const storeId = headersList.get('x-store-id');
+  // Get storeId from param or header
+  const storeId = storeIdParam || headersList.get('x-store-id');
 
   if (!storeId) {
     throw new Error('X-Store-Id header is required for session-based requests');
   }
 
-  // Verify user has access to this store
-  const staff = await prisma.storeStaff.findUnique({
+  // 1. Check if SuperAdmin - allow access to any store
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isSuperAdmin: true }
+  });
+
+  if (user?.isSuperAdmin) {
+    return { storeId, userId };
+  }
+
+  // 2. Tenant Admin check REMOVED to enforce strict Store Staff assignment.
+  // Account Owners must be explicitly added as Store Staff to access the store.
+
+  /* 
+  const store = await prisma.store.findUnique({ ... });
+  if (store?.account.users.length && store.account.users.length > 0) {
+    return { storeId, userId };
+  } 
+  */
+
+  // 3. Check StoreStaff (existing logic for Store Admins)
+  let staff = await prisma.storeStaff.findUnique({
     where: {
       storeId_userId: {
         storeId,
@@ -63,6 +86,8 @@ export async function resolveTenant(): Promise<TenantContext> {
       },
     },
   });
+
+
 
   if (!staff) {
     throw new Error('Access denied. User is not a member of this store.');

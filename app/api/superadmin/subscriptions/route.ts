@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import * as subscriptionDal from '@/dal/subscription.dal';
+import { requireSuperAdmin } from '@/lib/auth/requireSuperAdmin';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/superadmin/subscriptions
@@ -9,7 +12,7 @@ import * as subscriptionDal from '@/dal/subscription.dal';
  */
 export async function GET(req: NextRequest) {
     try {
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         const { searchParams } = new URL(req.url);
         const skip = parseInt(searchParams.get('skip') || '0');
@@ -64,7 +67,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         const body = await req.json();
 

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireSuperAdmin } from '@/lib/auth/requireSuperAdmin';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/superadmin/users/[id]
@@ -12,7 +15,7 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         const user = await prisma.user.findUnique({
             where: { id },
@@ -67,7 +70,7 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         const body = await req.json();
 
@@ -101,7 +104,7 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         await prisma.user.delete({
             where: { id },

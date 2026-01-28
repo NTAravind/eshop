@@ -10,6 +10,8 @@ export async function createProduct(
     name: string;
     description?: string;
     categoryId?: string;
+    productSchemaId?: string;
+    customData?: Record<string, any>;
     isActive?: boolean;
   }
 ) {
@@ -50,6 +52,8 @@ export async function updateProduct(
     name?: string;
     description?: string;
     categoryId?: string;
+    productSchemaId?: string;
+    customData?: Record<string, any>;
     isActive?: boolean;
   }
 ) {
@@ -105,7 +109,7 @@ export async function listProducts(
   }
 ) {
   // Read access - no permission check needed (public API)
-  
+
   // Validation
   const take = filters?.take ?? 50;
   if (take > 100) {
@@ -128,16 +132,4 @@ export async function attachCategoryToProduct(
   await requireStoreRole(userId, storeId, 'MANAGER');
 
   return productDal.attachCategory(storeId, productId, categoryId);
-}
-
-export async function attachFacetsToProduct(
-  userId: string,
-  storeId: string,
-  productId: string,
-  facetValueIds: string[]
-) {
-  // Permission check
-  await requireStoreRole(userId, storeId, 'MANAGER');
-
-  return productDal.attachFacetValuesToProduct(storeId, productId, facetValueIds);
 }

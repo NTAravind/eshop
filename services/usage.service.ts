@@ -1,5 +1,6 @@
 import * as subscriptionDal from '@/dal/subscription.dal';
 import { UsageLimitError, ConflictError } from '@/lib/errors';
+export { UsageLimitError };
 
 /**
  * CRITICAL OPTIMIZATION: All usage checks now read from UsageCounter
@@ -81,7 +82,7 @@ export async function checkProductLimit(accountId: string): Promise<void> {
  * Check if account can create an order
  */
 export async function checkOrderLimit(accountId: string): Promise<void> {
-  return 
+  return
 }
 /**
  * Check if account can add staff

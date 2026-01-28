@@ -13,7 +13,7 @@ async function getStripeClient(storeId: string): Promise<Stripe> {
   );
 
   return new Stripe(credentials.apiKey, {
-    apiVersion: '2023-10-16',
+    apiVersion: '2023-10-16' as any,
     typescript: true,
   });
 }
@@ -46,7 +46,6 @@ export async function createStripePaymentIntent(
     provider: 'STRIPE',
     amount,
     currency: currency.toUpperCase(),
-    status: 'PENDING',
   });
 
   return {
@@ -70,7 +69,7 @@ export async function confirmStripePayment(
   if (paymentIntent.status === 'succeeded') {
     // Update payment status in database
     const orderId = paymentIntent.metadata.orderId;
-    
+
     // Find payment by orderId
     const payments = await paymentDal.listPayments(storeId, {
       orderId,

@@ -101,9 +101,6 @@ export async function deleteCategory(storeId: string, categoryId: string) {
   });
 }
 
-/**
- * List categories (excludes soft-deleted)
- */
 export async function listCategories(storeId: string) {
   return prisma.category.findMany({
     where: { storeId, deletedAt: null },
@@ -116,9 +113,7 @@ export async function listCategories(storeId: string) {
       },
       _count: {
         select: {
-          products: {
-            where: { deletedAt: null },
-          },
+          products: true,
         },
       },
     },
@@ -126,9 +121,6 @@ export async function listCategories(storeId: string) {
   });
 }
 
-/**
- * Get category tree (excludes soft-deleted)
- */
 export async function getCategoryTree(storeId: string) {
   const allCategories = await prisma.category.findMany({
     where: { storeId, deletedAt: null },
@@ -143,9 +135,7 @@ export async function getCategoryTree(storeId: string) {
       },
       _count: {
         select: {
-          products: {
-            where: { deletedAt: null },
-          },
+          products: true,
         },
       },
     },
@@ -155,9 +145,6 @@ export async function getCategoryTree(storeId: string) {
   return allCategories.filter(cat => cat.parentId === null);
 }
 
-/**
- * Get category by ID (excludes soft-deleted)
- */
 export async function getCategoryById(storeId: string, categoryId: string) {
   return prisma.category.findFirst({
     where: {
@@ -174,9 +161,7 @@ export async function getCategoryById(storeId: string, categoryId: string) {
       },
       _count: {
         select: {
-          products: {
-            where: { deletedAt: null },
-          },
+          products: true,
         },
       },
     },

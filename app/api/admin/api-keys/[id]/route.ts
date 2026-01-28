@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as apiKeyService from '@/services/apiKey.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * DELETE /api/api-keys/[id]
  * Revoke an API key (OWNER only)

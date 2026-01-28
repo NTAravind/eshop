@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as storeStaffService from '@/services/storestaff.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * PATCH /api/store-staff/[userId]
  * Update staff member's role (OWNER only)
  */
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ "store-staff": string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params;
-  const userId = params["store-staff"];
+  const userId = params.id;
   // Override params.userId usage with userId variable or just mock it to look like old params
   const legacyParams = { userId };
   try {
@@ -63,10 +65,10 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  context: { params: Promise<{ "store-staff": string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   const params = await context.params;
-  const legacyParams = { userId: params["store-staff"] };
+  const legacyParams = { userId: params.id };
   try {
     const tenant = await resolveTenant();
 

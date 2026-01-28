@@ -41,4 +41,15 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
- i
+
+# Local Debug & Admin Scripts
+scripts/
+examples/
+docs/
+
+# IDEs
+.vscode
+.idea
+
+# Documentation
+# *.md # Commented out to allow README and docs 

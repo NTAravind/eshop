@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import { confirmStripePayment } from '@/lib/payments/stripe';
+
+export const dynamic = 'force-dynamic';
 import { captureRazorpayPayment } from '@/lib/payments/razorpay';
 
 /**

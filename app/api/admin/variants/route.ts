@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import * as variantService from '@/services/varient.service';
+import * as variantService from '@/services/variant.service';
+
+export const dynamic = 'force-dynamic';
 import { hasWriteScope } from '@/services/apiKey.service';
 
 /**

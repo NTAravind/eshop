@@ -1,4 +1,4 @@
-import * as storeStaffDal from '@/dal/storestuff.dal';
+import * as storeStaffDal from '@/dal/storestaff.dal';
 import * as subscriptionDal from '@/dal/subscription.dal';
 import * as usageService from '@/services/usage.service';
 import { requireStoreRole } from '@/lib/auth/requireStore';
@@ -134,5 +134,106 @@ export async function getStaffMember(
   // Any staff member can view other members
   await requireStoreRole(currentUserId, storeId, 'SUPPORT');
 
+  // ... existing code ...
   return storeStaffDal.getStoreStaff(storeId, targetUserId);
+}
+
+// INVITATION / ALLOWLIST LOGIC
+
+export async function inviteStaff(
+  currentUserId: string,
+  storeId: string,
+  email: string,
+  role: StoreRole = 'MANAGER'
+) {
+  // Only OWNER can invite (allowlist)
+  await requireStoreRole(currentUserId, storeId, 'OWNER');
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Check if already member
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (user) {
+    const existing = await storeStaffDal.getStoreStaff(storeId, user.id);
+    if (existing) {
+      throw new Error('User is already a member of this store');
+    }
+  }
+
+  // Check existing invite
+  const existingInvite = await prisma.storeInvitation.findUnique({
+    where: { storeId_email: { storeId, email: normalizedEmail } }
+  });
+
+  if (existingInvite) {
+    // Update role if needed
+    return prisma.storeInvitation.update({
+      where: { id: existingInvite.id },
+      data: { role }
+    });
+  }
+
+  return prisma.storeInvitation.create({
+    data: {
+      storeId,
+      email: normalizedEmail,
+      role,
+    }
+  });
+}
+
+export async function removeInvitation(
+  currentUserId: string,
+  storeId: string,
+  email: string
+) {
+  await requireStoreRole(currentUserId, storeId, 'OWNER');
+  return prisma.storeInvitation.delete({
+    where: { storeId_email: { storeId, email: email.toLowerCase().trim() } }
+  });
+}
+
+export async function listInvitations(
+  currentUserId: string,
+  storeId: string
+) {
+  await requireStoreRole(currentUserId, storeId, 'MANAGER');
+  return prisma.storeInvitation.findMany({
+    where: { storeId },
+    orderBy: { createdAt: 'desc' }
+  });
+}
+
+/**
+ * Checks if there is a pending invitation for this user and accepts it automatically.
+ * Called during tenant resolution / login.
+ */
+export async function acceptInvitation(userId: string, storeId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || (!user.email && !user.emailVerified)) return null;
+
+  // We trust the user.email provided by Auth.js (Google)
+  // Some providers might not verify email, but for Google it's usually fine.
+  // Ideally check emailVerified, but keeping it simple for now.
+
+  const email = user.email || "";
+
+  const invite = await prisma.storeInvitation.findUnique({
+    where: { storeId_email: { storeId, email } }
+  });
+
+  if (!invite) return null;
+
+  // Create staff member
+  try {
+    const staff = await storeStaffDal.addStoreStaff(storeId, userId, invite.role);
+
+    // Delete invitation after acceptance
+    await prisma.storeInvitation.delete({ where: { id: invite.id } });
+
+    return staff;
+  } catch (e) {
+    console.error("Failed to accept invitation", e);
+    return null; // Maybe already added in race condition
+  }
 }

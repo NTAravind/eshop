@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { auth } from '@/lib/auth';
 import * as storeService from '@/services/store.service';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/admin/stores
  * Create a new store
  */
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
     try {
-        const tenant = await resolveTenant();
+        const session = await auth();
 
-        // Store creation requires user authentication (not API keys)
-        if (tenant.apiKeyId) {
-            return NextResponse.json(
-                { error: 'Store creation cannot be done via API keys' },
-                { status: 403 }
-            );
-        }
-
-        if (!tenant.userId) {
+        if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'User authentication required' },
-                { status: 403 }
+                { status: 401 }
             );
         }
 
-        const body = await req.json();
+        const data = await request.json();
 
-        const store = await storeService.createStore(tenant.userId, {
-            name: body.name,
-            slug: body.slug,
+        const store = await storeService.createStore(session.user.id, {
+            name: data.name,
+            slug: data.slug,
         });
 
         return NextResponse.json(store, { status: 201 });
@@ -48,23 +42,16 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
     try {
-        const tenant = await resolveTenant();
+        const session = await auth();
 
-        if (tenant.apiKeyId) {
-            return NextResponse.json(
-                { error: 'Store listing cannot be accessed via API keys' },
-                { status: 403 }
-            );
-        }
-
-        if (!tenant.userId) {
+        if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'User authentication required' },
-                { status: 403 }
+                { status: 401 }
             );
         }
 
-        const stores = await storeService.listStoresForUser(tenant.userId);
+        const stores = await storeService.listStoresForUser(session.user.id);
 
         return NextResponse.json({ stores });
     } catch (error: any) {

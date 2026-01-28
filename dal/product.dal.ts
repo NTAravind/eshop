@@ -10,6 +10,8 @@ export async function createProduct(
     name: string;
     description?: string;
     categoryId?: string;
+    productSchemaId?: string;
+    customData?: Record<string, any>;
     isActive?: boolean;
   }
 ) {
@@ -19,13 +21,13 @@ export async function createProduct(
       name: data.name,
       description: data.description,
       categoryId: data.categoryId,
+      productSchemaId: data.productSchemaId,
+      customData: data.customData,
       isActive: data.isActive ?? true,
     },
     include: {
       category: true,
-      variants: {
-        where: { deletedAt: null },
-      },
+      variants: true,
       images: true,
     },
   });
@@ -41,6 +43,8 @@ export async function updateProduct(
     name?: string;
     description?: string;
     categoryId?: string;
+    productSchemaId?: string;
+    customData?: Record<string, any>;
     isActive?: boolean;
   }
 ) {
@@ -48,14 +52,11 @@ export async function updateProduct(
     where: {
       id: productId,
       storeId,
-      deletedAt: null,
     },
     data,
     include: {
       category: true,
-      variants: {
-        where: { deletedAt: null },
-      },
+      variants: true,
       images: true,
     },
   });
@@ -69,10 +70,8 @@ export async function deleteProduct(storeId: string, productId: string) {
     where: {
       id: productId,
       storeId,
-      deletedAt: null,
     },
     data: {
-      deletedAt: new Date(),
       isActive: false,
     },
   });
@@ -86,37 +85,15 @@ export async function getProductById(storeId: string, productId: string) {
     where: {
       id: productId,
       storeId,
-      deletedAt: null,
     },
     include: {
-      category: {
-        where: { deletedAt: null },
-      },
+      category: true,
       variants: {
-        where: { deletedAt: null },
         include: {
           images: true,
-          facets: {
-            include: {
-              facetValue: {
-                include: {
-                  facet: true,
-                },
-              },
-            },
-          },
         },
       },
       images: true,
-      facets: {
-        include: {
-          facetValue: {
-            include: {
-              facet: true,
-            },
-          },
-        },
-      },
     },
   });
 }
@@ -136,10 +113,8 @@ export async function listProducts(
 ) {
   const where: Prisma.ProductWhereInput = {
     storeId,
-    deletedAt: null,
-    ...(filters?.categoryId && { 
+    ...(filters?.categoryId && {
       categoryId: filters.categoryId,
-      category: { deletedAt: null },
     }),
     ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
     ...(filters?.search && {
@@ -156,11 +131,8 @@ export async function listProducts(
       skip: filters?.skip ?? 0,
       take: filters?.take ?? 50,
       include: {
-        category: {
-          where: { deletedAt: null },
-        },
+        category: true,
         variants: {
-          where: { deletedAt: null },
           include: {
             images: true,
           },
@@ -187,7 +159,6 @@ export async function attachCategory(
     where: {
       id: productId,
       storeId,
-      deletedAt: null,
     },
     data: {
       categoryId,
@@ -196,48 +167,25 @@ export async function attachCategory(
 }
 
 /**
- * Attach facet values to product
+ * Update product customData
  */
-export async function attachFacetValuesToProduct(
+export async function updateProductCustomData(
   storeId: string,
   productId: string,
-  facetValueIds: string[]
+  customData: Record<string, any>
 ) {
-  const product = await prisma.product.findFirst({
-    where: { id: productId, storeId, deletedAt: null },
-  });
-
-  if (!product) {
-    throw new Error('Product not found');
-  }
-
-  // Delete existing facet values
-  await prisma.productFacetValue.deleteMany({
-    where: { productId },
-  });
-
-  // Create new associations
-  if (facetValueIds.length > 0) {
-    await prisma.productFacetValue.createMany({
-      data: facetValueIds.map(facetValueId => ({
-        productId,
-        facetValueId,
-      })),
-    });
-  }
-
-  return prisma.product.findUnique({
-    where: { id: productId },
+  return prisma.product.update({
+    where: {
+      id: productId,
+      storeId,
+    },
+    data: {
+      customData,
+    },
     include: {
-      facets: {
-        include: {
-          facetValue: {
-            include: {
-              facet: true,
-            },
-          },
-        },
-      },
+      category: true,
+      variants: true,
+      images: true,
     },
   });
 }

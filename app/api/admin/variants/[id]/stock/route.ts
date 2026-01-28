@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import * as variantService from '@/services/varient.service';
+import * as variantService from '@/services/variant.service';
 import { hasWriteScope } from '@/services/apiKey.service';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * PATCH /api/variants/[id]/stock
@@ -41,7 +43,7 @@ export async function PATCH(
       );
     }
 
-    const variant = await variantService.updateStock(
+    const variant = await variantService.updateVariantStock(
       tenant.userId,
       tenant.storeId,
       params.id,

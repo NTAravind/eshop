@@ -20,6 +20,7 @@ enum StoreRole {
 enum OrderStatus {
   PENDING
   PAID
+  COMPLETED
   CANCELLED
   REFUNDED
 }
@@ -67,6 +68,21 @@ enum PlanType {
   ENTERPRISE
 }
 
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  WEB_PUSH
+  MOBILE_PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
 ////////////////////
 /// USERS (Auth.js)
 ////////////////////
@@ -76,7 +92,9 @@ model User {
   email            String           @unique
   emailVerified    DateTime?
   name             String?
+  phone            String?          // Optional phone number
   image            String?
+  isSuperAdmin     Boolean          @default(false)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   billingAddresses BillingAddress[]
@@ -85,6 +103,7 @@ model User {
   stores           StoreStaff[]
   discountUsages   DiscountUsage[]
   ownedAccounts    AccountUser[]
+  orders           Order[]
 }
 
 model BillingAddress {
@@ -99,6 +118,7 @@ model BillingAddress {
   createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
 
   @@index([userId])
 }
@@ -152,6 +172,7 @@ model BillingAccount {
   subscription AccountSubscription?
   usage        UsageCounter[]
   invoices     Invoice[]
+  invitations  AccountInvitation[]
 
   @@index([createdAt])
 }
@@ -300,11 +321,13 @@ model Invoice {
 ////////////////////
 
 model Store {
-  id        String   @id @default(cuid())
-  accountId String
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
+  id                 String   @id @default(cuid())
+  accountId          String
+  name               String
+  slug               String   @unique
+  currency           String   @default("INR") // Store currency code (e.g. "USD", "INR")
+  requirePhoneNumber Boolean  @default(false) // Store setting: require phone for orders
+  createdAt          DateTime @default(now())
   
   account        BillingAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   staff          StoreStaff[]
@@ -314,8 +337,13 @@ model Store {
   apiKeys        ApiKey[]
   paymentConfigs PaymentConfig[]
   categories     Category[]
-  facets         Facet[]
   discounts      Discount[]
+  invitations    StoreInvitation[]
+  notificationConfigs   NotificationConfig[]
+  notificationLogs      NotificationLog[]
+  notificationTemplates NotificationTemplate[]
+  productSchemas ProductSchema[]
+  variantSchemas VariantSchema[]
 
   @@index([slug])
   @@index([accountId])
@@ -347,51 +375,48 @@ model StoreStaff {
 model Product {
   id          String    @id @default(cuid())
   storeId     String
-  categoryId  String?
+  categoryId  String?   // Optional category for organization
   name        String
   description String?
+  customData  Json?     // Store custom attributes based on ProductSchema
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())
-  deletedAt   DateTime?
 
-  store    Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category Category?           @relation(fields: [categoryId], references: [id])
-  variants ProductVariant[]
-  images   Image[]
-  facets   ProductFacetValue[]
+  store           Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  productSchemaId String?
+  productSchema   ProductSchema?   @relation(fields: [productSchemaId], references: [id])
+  variants        ProductVariant[]
+  images          Image[]
 
   discountProducts DiscountProduct[]
 
-  @@index([storeId, deletedAt])
+  @@index([storeId])
+  @@index([storeId, isActive])
+  @@index([storeId, createdAt])
   @@index([categoryId])
-  @@index([storeId, isActive, deletedAt])
-  
 }
 
 model ProductVariant {
-  id        String    @id @default(cuid())
-  productId String
-  sku       String
-  price     Int
-  stock     Int
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
+  id         String   @id @default(cuid())
+  productId  String
+  sku        String   @unique
+  price      Int      // Price in smallest currency unit
+  stock      Int
+  customData Json?    // Store custom variant attributes based on VariantSchema
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   images  Image[]
-  facets  VariantFacetValue[]
 
   orderLines OrderLine[]
 
-  @@index([productId, deletedAt])
-  @@index([sku, deletedAt])
-  @@index([productId, isActive, deletedAt])
-  @@index([stock])
-  @@unique([sku, deletedAt])
-   @@index([productId, isActive, stock, deletedAt]) // Filter available variants
-  @@index([stock, isActive, deletedAt]) // Find low stock items
-  @@index([sku, isActive, deletedAt]) // SKU lookups for active items
+  @@index([productId])
+  @@index([productId, isActive])
+  @@index([productId, stock])
+  @@index([stock, isActive]) // Find low stock items
+  @@index([sku])
 }
 
 model Image {
@@ -411,51 +436,41 @@ model Image {
   @@index([variantId])
 }
 
-model Facet {
+////////////////////
+/// CUSTOM SCHEMAS
+////////////////////
+
+model ProductSchema {
   id        String   @id @default(cuid())
   storeId   String
-  name      String
-  code      String
+  version   Int      @default(1)
+  name      String   // Human-readable name like "Default Product Schema"
+  fields    Json     // Schema definition with field types, validation, visibility
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  store  Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  values FacetValue[]
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
 
-  @@unique([storeId, code])
-  @@index([storeId])
+  @@unique([storeId, name, version])
+  @@index([storeId, isActive])
 }
 
-model FacetValue {
-  id      String @id @default(cuid())
-  facetId String
-  value   String
+model VariantSchema {
+  id        String   @id @default(cuid())
+  storeId   String
+  version   Int      @default(1)
+  name      String   // Human-readable name like "Default Variant Schema"
+  fields    Json     // Schema definition extending product schema
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  facet Facet @relation(fields: [facetId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  productLinks ProductFacetValue[]
-  variantLinks VariantFacetValue[]
-
-  @@index([facetId])
-}
-
-model ProductFacetValue {
-  productId    String
-  facetValueId String
-
-  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  facetValue FacetValue @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
-
-  @@id([productId, facetValueId])
-}
-
-model VariantFacetValue {
-  variantId    String
-  facetValueId String
-
-  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  facetValue FacetValue     @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
-
-  @@id([variantId, facetValueId])
+  @@unique([storeId, version])
+  @@index([storeId, isActive])
 }
 
 model Category {
@@ -571,14 +586,18 @@ model Order {
   id             String      @id @default(cuid())
   storeId        String
   userId         String?
+  billingAddressId String?
   subtotal       Int
   discountAmount Int         @default(0)
   total          Int
   currency       String      @default("INR")
   status         OrderStatus
+  completedAt    DateTime?
   createdAt      DateTime    @default(now())
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  billingAddress BillingAddress? @relation(fields: [billingAddressId], references: [id], onDelete: SetNull)
 
   lines     OrderLine[]
   payments  Payment[]
@@ -588,6 +607,7 @@ model Order {
   @@index([userId])
   @@index([storeId, status])
   @@index([createdAt])
+  @@index([billingAddressId])
     @@index([storeId, userId, createdAt]) // User's order history
   @@index([storeId, status, createdAt]) // Status filtering with time
   @@index([userId, createdAt]) // User order list across stores
@@ -595,17 +615,18 @@ model Order {
 }
 
 model OrderLine {
-  orderId   String
-  variantId String
-  quantity  Int
-  price     Int
+  orderId         String
+  variantId       String
+  quantity        Int
+  price           Int
+  productSnapshot Json  // Snapshot of product.customData at checkout
+  variantSnapshot Json  // Snapshot of variant.customData at checkout
 
   order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant ProductVariant @relation(fields: [variantId], references: [id])
 
   @@id([orderId, variantId])
   @@index([variantId])
-  
 }
 
 model OrderDiscount {
@@ -691,4 +712,111 @@ model ApiKey {
     @@index([storeId, revokedAt]) // List active keys
   @@index([storeId, lastUsedAt]) // Sort by usage
   @@index([keyId, revokedAt]) // Fast validation with revocation check
+}
+
+////////////////////
+/// STORE INVITATIONS
+////////////////////
+
+model StoreInvitation {
+  id        String    @id @default(cuid())
+  storeId   String
+  email     String
+  role      StoreRole @default(MANAGER)
+  token     String    @unique @default(cuid()) // For potential direct links
+  expiresAt DateTime? // Optional expiration
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, email])
+  @@index([email])
+  @@index([token])
+}
+
+model AccountInvitation {
+  id        String   @id @default(cuid())
+  accountId String
+  email     String
+  role      String   @default("MEMBER")
+  token     String   @unique @default(cuid())
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account BillingAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, email])
+  @@index([email])
+  @@index([token])
+}
+
+////////////////////
+/// NOTIFICATIONS
+////////////////////
+
+model NotificationConfig {
+  id        String              @id @default(cuid())
+  storeId   String
+  channel   NotificationChannel
+  
+  // Generic config store (encrypted ideally, but simple string/json for now)
+  config    Json    // Credentials like { apiKey, apiSecret, fromEmail, vapidKeys, etc }
+  
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, channel])
+  @@index([storeId, isActive])
+}
+
+model NotificationLog {
+  id        String              @id @default(cuid())
+  storeId   String
+  channel   NotificationChannel
+  
+  recipient String  // Phone, Email, Validation Token
+  content   String  @db.Text
+  
+  status    NotificationStatus @default(QUEUED)
+  error     String?            @db.Text
+  
+  providerMessageId String? // External ID from provider
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, channel, createdAt])
+  @@index([status])
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  storeId   String
+  channel   NotificationChannel
+  eventType String              // e.g., "ORDER_COMPLETE", "ORDER_CREATED", "PAYMENT_RECEIVED"
+  
+  // For WhatsApp (Facebook templates)
+  whatsappTemplateName String?    // e.g., "trackingorder"
+  whatsappLanguageCode String?    // e.g., "en"
+  
+  // For other channels (Email, SMS, Push)
+  subject   String?             // For email
+  content   String?             @db.Text // Template content with variables like {orderId}, {amount}
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@unique([storeId, channel, eventType])
+  @@index([storeId, channel, isActive])
+  @@index([storeId, eventType])
 }

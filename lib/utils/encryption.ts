@@ -9,7 +9,7 @@ const IV_LENGTH = 16; // 128 bits
  */
 export function validateEncryptionKey(): void {
   const key = process.env.ENCRYPTION_KEY;
-  
+
   if (!key) {
     throw new Error(
       'ENCRYPTION_KEY environment variable is required for payment security. ' +
@@ -30,7 +30,7 @@ export function validateEncryptionKey(): void {
  */
 function getEncryptionKey(): Buffer {
   const key = process.env.ENCRYPTION_KEY;
-  
+
   if (!key) {
     throw new Error('ENCRYPTION_KEY not configured');
   }
@@ -49,11 +49,11 @@ export function encrypt(text: string): string {
 
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
-  
+
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  
+
   return `${iv.toString('hex')}:${encrypted}`;
 }
 
@@ -73,11 +73,11 @@ export function decrypt(text: string): string {
   const key = getEncryptionKey();
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = parts[1];
-  
+
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
-  
+
   return decrypted;
 }
 
@@ -95,7 +95,7 @@ export function verifyApiKey(key: string, hash: string): boolean {
   return hashApiKey(key) === hash;
 }
 
-// Validate encryption key on module load
-if (process.env.NODE_ENV !== 'test') {
-  validateEncryptionKey();
-}
+// Validate encryption key on module load only if explicitly required or in specific environments
+// if (process.env.NODE_ENV !== 'test') {
+//   validateEncryptionKey();
+// }

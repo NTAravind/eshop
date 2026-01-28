@@ -108,32 +108,108 @@ export async function deleteStore(userId: string, storeId: string) {
 }
 
 /**
- * List stores for user's account
+ * List stores for user based on their access level
+ * - SuperAdmin: All stores
+ * - Tenant Admin (AccountUser OWNER): All stores in their account(s)
+ * - Store Staff: Stores they're assigned to
  */
 export async function listStoresForUser(userId: string) {
-  const account = await subscriptionDal.getAccountByUserId(userId);
+  // 1. Check if SuperAdmin - return all stores
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isSuperAdmin: true }
+  });
 
-  if (!account) {
+  if (user?.isSuperAdmin) {
+    return prisma.store.findMany({
+      include: {
+        account: {
+          include: {
+            subscription: {
+              include: { plan: true }
+            }
+          }
+        },
+        staff: {
+          select: {
+            role: true,
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  // 2. Get all accounts where user is OWNER (Tenant Admin)
+  // We allow listing so they can see/manage the store entity (billing, etc) but access to dashboard is blocked at layout level if not staff.
+  const accountUsers = await prisma.accountUser.findMany({
+    where: {
+      userId,
+      role: 'OWNER'
+    },
+    select: { accountId: true }
+  });
+
+  const accountIds = accountUsers.map(au => au.accountId);
+
+  if (accountIds.length > 0) {
+    // Return all stores in accounts where user is Tenant Admin
+    return prisma.store.findMany({
+      where: {
+        accountId: { in: accountIds }
+      },
+      include: {
+        account: {
+          include: {
+            subscription: {
+              include: { plan: true }
+            }
+          }
+        },
+        staff: {
+          where: { userId },
+          select: { role: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  // 3. Fallback: Return stores where user is StoreStaff
+  const staffAssignments = await prisma.storeStaff.findMany({
+    where: { userId },
+    select: { storeId: true, role: true }
+  });
+
+  if (staffAssignments.length === 0) {
     return [];
   }
 
   return prisma.store.findMany({
     where: {
-      accountId: account.id,
+      id: { in: staffAssignments.map(s => s.storeId) }
     },
     include: {
-      staff: {
-        where: {
-          userId,
-        },
-        select: {
-          role: true,
-        },
+      account: {
+        include: {
+          subscription: {
+            include: { plan: true }
+          }
+        }
       },
+      staff: {
+        where: { userId },
+        select: { role: true }
+      }
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy: { createdAt: 'desc' }
   });
 }
 

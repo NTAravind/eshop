@@ -49,7 +49,6 @@ export async function createRazorpayOrder(
     provider: 'RAZORPAY',
     amount,
     currency,
-    status: 'PENDING',
   });
 
   return {
@@ -79,7 +78,7 @@ export async function verifyRazorpaySignature(
   }
 
   const body = razorpayOrderId + '|' + razorpayPaymentId;
-  
+
   const expectedSignature = crypto
     .createHmac('sha256', credentials.apiSecret)
     .update(body)
@@ -167,7 +166,7 @@ export async function handleRazorpayWebhook(
   switch (event) {
     case 'payment.captured': {
       const orderId = payload.notes?.orderId;
-      
+
       if (orderId) {
         const payments = await paymentDal.listPayments(storeId, {
           orderId,
@@ -185,7 +184,7 @@ export async function handleRazorpayWebhook(
 
     case 'payment.failed': {
       const orderId = payload.notes?.orderId;
-      
+
       if (orderId) {
         const payments = await paymentDal.listPayments(storeId, {
           orderId,

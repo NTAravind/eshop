@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as facetDal from '@/dal/facet.dal';
+
+export const dynamic = 'force-dynamic';
 import { requireStoreRole } from '@/lib/auth/requireStore';
 import { hasWriteScope } from '@/services/apiKey.service';
 

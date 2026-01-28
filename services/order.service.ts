@@ -10,13 +10,19 @@ import {
   ValidationError,
   ConflictError,
 } from '@/lib/errors';
+import * as orderDal from '@/dal/order.dal';
+import { getTemplateByEvent } from '@/dal/notification-template.dal';
+import { renderTemplate } from '@/services/notification-template.service';
+import { sendNotification } from '@/services/notification/notification.service';
+import { NotificationChannel } from '@/app/generated/prisma';
+import { formatCurrency } from '@/lib/utils';
 
 interface OrderLineInput {
   variantId: string;
   quantity: number;
 }
 
- 
+
 export async function createOrder(
   storeId: string,
   input: {
@@ -33,7 +39,7 @@ export async function createOrder(
   }
 
   // ENFORCE ORDER LIMIT (account-wide, monthly)
- 
+
 
   // Validation
   if (!input.lines || input.lines.length === 0) {
@@ -58,19 +64,40 @@ export async function createOrder(
     }
   }
 
-  const currency = input.currency || 'INR';
+  // const currency = input.currency || 'INR'; // Moved to after store fetch
+
+  // ==========================================
+  // PHONE VALIDATION (if required by store)
+  // ==========================================
+
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: { requirePhoneNumber: true, currency: true }
+  });
+
+  if (store?.requirePhoneNumber && input.userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { phone: true }
+    });
+
+    if (!user?.phone) {
+      throw new ValidationError('Phone number is required for this store. Please update your profile.');
+    }
+  }
+
+  const currency = store?.currency || 'INR';
 
   // ==========================================
   // STEP 1: PRE-TRANSACTION PREPARATION
   // Fetch variants and calculate totals OUTSIDE transaction
   // ==========================================
-  
+
   const variantIds = input.lines.map(l => l.variantId);
   const variants = await prisma.productVariant.findMany({
     where: {
       id: { in: variantIds },
-      product: { storeId, deletedAt: null },
-      deletedAt: null,
+      product: { storeId },
     },
     include: {
       product: {
@@ -78,7 +105,7 @@ export async function createOrder(
           id: true,
           categoryId: true,
           isActive: true,
-          deletedAt: true,
+          customData: true,
         },
       },
     },
@@ -97,6 +124,8 @@ export async function createOrder(
     categoryId: string | null;
     quantity: number;
     price: number;
+    productSnapshot: any;
+    variantSnapshot: any;
   }> = [];
 
   let subtotal = 0;
@@ -115,9 +144,7 @@ export async function createOrder(
       throw new ConflictError(`Product for variant ${variant.sku} is not active`);
     }
 
-    if (variant.product.deletedAt) {
-      throw new ConflictError(`Product for variant ${variant.sku} has been deleted`);
-    }
+
 
     if (variant.stock < line.quantity) {
       throw new ConflictError(
@@ -134,6 +161,8 @@ export async function createOrder(
       categoryId: variant.product.categoryId,
       quantity: line.quantity,
       price: variant.price,
+      productSnapshot: variant.product.customData ?? {},
+      variantSnapshot: variant.customData ?? {},
     });
   }
 
@@ -141,7 +170,7 @@ export async function createOrder(
   // STEP 2: CALCULATE DISCOUNTS (OUTSIDE TRANSACTION)
   // This is the critical optimization - no locks held during calculation
   // ==========================================
-  
+
   const { applicableDiscounts, totalDiscount } = await discountService.calculateDiscounts(
     storeId,
     processedLines,
@@ -157,7 +186,7 @@ export async function createOrder(
   // STEP 3: ATOMIC TRANSACTION (MINIMAL LOCK TIME)
   // Only stock updates and order creation inside transaction
   // ==========================================
-  
+
   const order = await prisma.$transaction(async (tx) => {
     // Reserve stock atomically with conditional updates
     for (const line of processedLines) {
@@ -165,7 +194,6 @@ export async function createOrder(
         where: {
           id: line.variantId,
           stock: { gte: line.quantity },
-          deletedAt: null,
         },
         data: {
           stock: {
@@ -196,6 +224,8 @@ export async function createOrder(
             variantId: line.variantId,
             quantity: line.quantity,
             price: line.price,
+            productSnapshot: line.productSnapshot,
+            variantSnapshot: line.variantSnapshot,
           })),
         },
         discounts: applicableDiscounts.length > 0 ? {
@@ -238,8 +268,55 @@ export async function createOrder(
   // RECORD ORDER CREATION (after transaction completes)
   await usageService.recordOrderCreation(account.id);
 
+  // Send notifications
+  await sendOrderCreationNotifications(storeId, order);
+
   return order;
 }
+
+async function sendOrderCreationNotifications(storeId: string, order: any) {
+  try {
+    const templates = await import('@/dal/notification-template.dal').then(m =>
+      m.getActiveTemplatesForEvent(storeId, 'ORDER_CREATED')
+    );
+
+    if (!templates || templates.length === 0) {
+      return;
+    }
+
+    const context = {
+      orderId: order.id,
+      amount: formatCurrency(order.total),
+      customerName: order.user?.name || 'Customer',
+      storeName: 'Your Store',
+    };
+
+    for (const template of templates) {
+      try {
+        const rendered = renderTemplate(template, context);
+        if (!rendered.success || !rendered.rendered) continue;
+
+        const recipient = template.channel === NotificationChannel.EMAIL
+          ? order.user?.email
+          : order.user?.phone;
+
+        if (!recipient) continue;
+
+        await sendNotification(
+          storeId,
+          template.channel,
+          recipient,
+          rendered.rendered.content || '',
+          { orderId: order.id }
+        );
+      } catch (err) {
+        console.error(`Failed to send creation notification ${template.channel}:`, err);
+      }
+    }
+  } catch (error) {
+  }
+}
+
 
 /**
  * Get order by ID
@@ -273,6 +350,7 @@ export async function getOrder(
         },
       },
       payments: true,
+      user: true,
     },
   });
 
@@ -330,6 +408,7 @@ export async function listOrders(
           },
         },
         payments: true,
+        user: true,
       },
       orderBy: { createdAt: 'desc' },
     }),
@@ -376,8 +455,8 @@ export async function updateOrderStatus(
     }
 
     // Restore stock if cancelling or refunding
-    if ((status === 'CANCELLED' || status === 'REFUNDED') && 
-        (order.status !== 'CANCELLED' && order.status !== 'REFUNDED')) {
+    if ((status === 'CANCELLED' || status === 'REFUNDED') &&
+      (order.status !== 'CANCELLED' && order.status !== 'REFUNDED')) {
       for (const line of order.lines) {
         await tx.productVariant.update({
           where: { id: line.variantId },
@@ -409,7 +488,85 @@ export async function updateOrderStatus(
           },
         },
         payments: true,
+        user: true,
       },
     });
   });
+}
+
+/**
+ * Mark order as complete and send notification
+ */
+export async function completeOrder(
+  userId: string,
+  storeId: string,
+  orderId: string
+) {
+  await requireStoreRole(userId, storeId, 'MANAGER');
+
+  // Complete the order
+  const order: any = await orderDal.completeOrder(storeId, orderId);
+
+  // Send notifications if configured
+  if (order.user) {
+    await sendOrderCompletionNotifications(storeId, order);
+  }
+
+  return order;
+}
+
+async function sendOrderCompletionNotifications(storeId: string, order: any) {
+  try {
+    // Fetch all active templates for this event, regardless of channel
+    const templates = await import('@/dal/notification-template.dal').then(m =>
+      m.getActiveTemplatesForEvent(storeId, 'ORDER_COMPLETE')
+    );
+
+    if (!templates || templates.length === 0) {
+      console.log(`No active templates found for ORDER_COMPLETE in store ${storeId}`);
+      return;
+    }
+
+    const context = {
+      orderId: order.id,
+      amount: formatCurrency(order.total),
+      customerName: order.user.name || 'Customer',
+      storeName: 'Your Store', // Could fetch from store data
+    };
+
+    // Send for each active template/channel
+    for (const template of templates) {
+      try {
+        const rendered = renderTemplate(template, context);
+
+        if (!rendered.success || !rendered.rendered) {
+          console.error(`Failed to render template ${template.id}: ${rendered.error}`);
+          continue;
+        }
+
+        const recipient = template.channel === NotificationChannel.EMAIL
+          ? order.user.email
+          : order.user.phone;
+
+        if (!recipient) {
+          console.warn(`No recipient found for channel ${template.channel} (User: ${order.userId})`);
+          continue;
+        }
+
+        await sendNotification(
+          storeId,
+          template.channel,
+          recipient,
+          rendered.rendered.content || '',
+          { orderId: order.id }
+        );
+
+      } catch (err) {
+        console.error(`Failed to process template ${template.id} for channel ${template.channel}:`, err);
+      }
+    }
+
+  } catch (error) {
+    console.error('Error fetching/sending completion notifications:', error);
+  }
 }

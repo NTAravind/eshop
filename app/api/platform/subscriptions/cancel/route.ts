@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as subscriptionService from '@/services/subscription.service';
+
+export const dynamic = 'force-dynamic';
 import * as subscriptionDal from '@/dal/subscription.dal';
 
 /**

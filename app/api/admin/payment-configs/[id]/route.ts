@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as paymentConfigService from '@/services/paymentConfig.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/payment-configs/[id]
  * Get single payment configuration

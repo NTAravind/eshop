@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as storeStaffService from '@/services/storestaff.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/store-staff
  * Add a staff member to the store (OWNER only)

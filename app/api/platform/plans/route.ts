@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as subscriptionService from '@/services/subscription.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/platform/plans
  * List all available subscription plans

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireSuperAdmin } from '@/lib/auth/requireSuperAdmin';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/superadmin/users
@@ -8,7 +11,7 @@ import prisma from '@/lib/prisma';
  */
 export async function GET(req: NextRequest) {
     try {
-        // TODO: Add superadmin role check
+        await requireSuperAdmin();
 
         const { searchParams } = new URL(req.url);
         const skip = parseInt(searchParams.get('skip') || '0');

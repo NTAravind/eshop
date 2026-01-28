@@ -265,7 +265,7 @@ export async function calculateDiscounts(
     discounts = discounts.filter(d => !d.code);
   }
 
-  const applicableDiscounts: ApplicableDiscount[] = [];
+  let applicableDiscounts: ApplicableDiscount[] = [];
 
   for (const discount of discounts) {
     // Check min order value

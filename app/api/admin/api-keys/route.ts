@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as apiKeyService from '@/services/apiKey.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/api-keys
  * Generate a new API key (OWNER only)

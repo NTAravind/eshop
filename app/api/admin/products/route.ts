@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as productService from '@/services/product.service';
+
+export const dynamic = 'force-dynamic';
 import { hasWriteScope } from '@/services/apiKey.service';
 
 /**
@@ -71,11 +73,11 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    
+
     const filters = {
       categoryId: searchParams.get('categoryId') || undefined,
-      isActive: searchParams.get('isActive') === 'true' ? true : 
-                searchParams.get('isActive') === 'false' ? false : undefined,
+      isActive: searchParams.get('isActive') === 'true' ? true :
+        searchParams.get('isActive') === 'false' ? false : undefined,
       search: searchParams.get('search') || undefined,
       skip: parseInt(searchParams.get('skip') || '0'),
       take: parseInt(searchParams.get('take') || '50'),

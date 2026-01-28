@@ -3,6 +3,8 @@ import { resolveTenant } from '@/lib/tenant/resolveTenant';
 import * as discountService from '@/services/discount.service';
 import { hasWriteScope } from '@/services/apiKey.service';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/discounts
  * Create a new discount
@@ -91,7 +93,7 @@ export async function GET(req: NextRequest) {
 
     const filters = {
       isActive: searchParams.get('isActive') === 'true' ? true :
-                searchParams.get('isActive') === 'false' ? false : undefined,
+        searchParams.get('isActive') === 'false' ? false : undefined,
       scope: searchParams.get('scope') as any,
       skip: parseInt(searchParams.get('skip') || '0'),
       take: parseInt(searchParams.get('take') || '50'),
