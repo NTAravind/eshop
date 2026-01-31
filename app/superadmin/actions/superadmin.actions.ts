@@ -397,3 +397,59 @@ export async function reactivateAccountAction(
         };
     }
 }
+
+// ==========================================
+// INVITE ACCOUNT USER
+// ==========================================
+
+export interface InviteAccountUserInput {
+    accountId: string;
+    email: string;
+    role?: string;
+}
+
+export interface InviteAccountUserResult {
+    success: boolean;
+    invitation?: any;
+    error?: string;
+}
+
+export async function inviteAccountUserAction(
+    data: InviteAccountUserInput
+): Promise<InviteAccountUserResult> {
+    try {
+        // We need the current user ID to send the invite
+        // Since this is a server action, we can use auth()
+        // But we need to import it.
+        const { auth } = await import('@/lib/auth');
+        const session = await auth();
+
+        if (!session?.user?.id) {
+            return { success: false, error: 'Unauthorized' };
+        }
+
+        // Import service dynamically or statically?
+        // Services are already imported as subscriptionService, subscriptionDal.
+        // We need invitationService.
+        const { inviteAccountUser } = await import('@/services/invitation.service');
+
+        const invitation = await inviteAccountUser(
+            session.user.id,
+            data.accountId,
+            data.email,
+            data.role || 'OWNER'
+        );
+
+        revalidatePath('/superadmin');
+
+        return { success: true, invitation };
+
+    } catch (error: any) {
+        console.error('Invite user error:', error);
+        return {
+            success: false,
+            error: error.message || 'Failed to invite user',
+        };
+    }
+}
+

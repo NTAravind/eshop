@@ -230,5 +230,14 @@ export async function getStoreWithAccount(storeId: string) {
         },
       },
     },
-  });
+  })
+}
+
+export async function getStoreBySlug(slug: string) {
+  return prisma.store.findUnique({
+    where: { slug },
+    include: {
+      account: true,
+    },
+  })
 }

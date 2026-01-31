@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
 
   providers: [
     Google({
@@ -14,8 +15,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
       authorization: {
         params: {
-          prompt: "login", // Force re-authentication explicitly
-          response_type: "code",
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
         },
       },
       allowDangerousEmailAccountLinking: true,
@@ -26,28 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: process.env.AUTH_INSTAGRAM_SECRET!,
     }),
 
-    // TEMPORARY: For testing login
-    {
-      id: "credentials",
-      name: "Credentials",
-      type: "credentials",
-      credentials: {
-        email: { label: "Email", type: "text" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email) return null;
 
-        // Allow login as anyone if in dev mode
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
-
-        if (user) {
-          return user;
-        }
-        return null;
-      }
-    }
   ],
 
   session: {

@@ -28,6 +28,8 @@ import { suspendAccountAction, reactivateAccountAction } from '@/app/superadmin/
 import { DataTable } from '@/components/ui/data-table';
 import { KPICard } from '@/components/superadmin/kpi-card';
 import { AssignSubscriptionDialog, CreateStoreDialog } from '@/components/superadmin/quick-actions';
+import { InviteUserDialog } from '@/components/superadmin/invite-user-dialog';
+import { BadgeDollarSign } from 'lucide-react';
 
 interface BillingAccountRow {
     id: string;
@@ -55,6 +57,7 @@ export default function AccountsPage() {
     // Dialog states
     const [assignSubOpen, setAssignSubOpen] = useState(false);
     const [createStoreOpen, setCreateStoreOpen] = useState(false);
+    const [inviteOpen, setInviteOpen] = useState(false);
     const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
     // Debounced search
@@ -266,6 +269,13 @@ export default function AccountsPage() {
                                 <DropdownMenuItem onClick={() => handleCopyId(account.id)}>
                                     Copy Account ID
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    setSelectedAccountId(account.id);
+                                    setInviteOpen(true);
+                                }}>
+                                    <Users className="mr-2 h-4 w-4" />
+                                    Invite Owner
+                                </DropdownMenuItem>
                                 {/* We can't easily trigger the dialogs from here unless we lift state up or use a context/store.
                                     For now, we'll implement simple state lifting or just use key-based rendering if needed.
                                     However, the requirement was to make pages for accounts. I'll reimplement the dialog triggers here.
@@ -286,6 +296,15 @@ export default function AccountsPage() {
 
     return (
         <div className="flex flex-col gap-8">
+            {/* Dialogs */}
+            <AssignSubscriptionDialog defaultAccountId={selectedAccountId} />
+            <CreateStoreDialog defaultAccountId={selectedAccountId} />
+            <InviteUserDialog
+                open={inviteOpen}
+                onOpenChange={setInviteOpen}
+                defaultAccountId={selectedAccountId}
+            />
+
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Accounts</h1>

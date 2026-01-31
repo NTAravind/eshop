@@ -109,23 +109,31 @@ export async function inviteStoreStaff(
         }
     }
 
-    // 3. CHECK STORE NOTIFICATION CONFIG (Crucial User Requirement)
-    const config = await prisma.notificationConfig.findUnique({
+    // 3. CHECK NOTIFICATION CONFIG
+    let config = await prisma.notificationConfig.findUnique({
         where: { storeId_channel: { storeId, channel: NotificationChannel.EMAIL } }
     });
 
-    if (!config || !config.isActive) {
-        throw new Error('Please configure Email settings for this store (Settings -> Notifications) before inviting staff. The system uses your store\'s email credentials to send invites.');
+    // Check Account Level Fallback
+    const store = await prisma.store.findUnique({
+        where: { id: storeId },
+        include: { account: true }
+    });
+
+    let accountConfig = null;
+    if (store?.account.emailSettings) {
+        accountConfig = store.account.emailSettings as any;
+    }
+
+    if ((!config || !config.isActive) && !accountConfig) {
+        throw new Error('Please configure Email settings for this store or your account before inviting staff.');
     }
 
     // 4. Create Invitation
     // Remove old invites
     await prisma.storeInvitation.delete({
         where: { storeId_email: { storeId, email: normalizedEmail } }
-    }).catch(() => { }); // Ignore not found
-
-    // StoreInvitation model might not have token by default if I didn't verify it carefully?
-    // User asked to check schema. StoreInvitation HAS token @default(cuid()).
+    }).catch(() => { });
 
     const invitation = await prisma.storeInvitation.create({
         data: {
@@ -137,22 +145,35 @@ export async function inviteStoreStaff(
     });
 
     // 5. Send User-Configured Email
-    const store = await prisma.store.findUnique({ where: { id: storeId } });
     const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/store/${invitation.token}`;
-
-    await notificationService.sendNotification(
-        storeId,
-        NotificationChannel.EMAIL,
-        normalizedEmail,
-        `You have been invited to join ${store?.name}`,
-        {
-            subject: `Invitation to join ${store?.name}`,
-            isHtml: true,
-            html: `<p>You have been invited to join <strong>${store?.name}</strong> as a <strong>${role}</strong>.</p>
+    const emailSubject = `Invitation to join ${store?.name}`;
+    const emailHtml = `<p>You have been invited to join <strong>${store?.name}</strong> as a <strong>${role}</strong>.</p>
              <p>Click below to accept:</p>
-             <a href="${inviteLink}">${inviteLink}</a>`
-        } // Passing raw content or html depending on provider implementation
-    );
+             <a href="${inviteLink}">${inviteLink}</a>`;
+
+
+    if (config && config.isActive) {
+        // Use standard flow
+        await notificationService.sendNotification(
+            storeId,
+            NotificationChannel.EMAIL,
+            normalizedEmail,
+            `You have been invited to join ${store?.name}`,
+            {
+                subject: emailSubject,
+                isHtml: true,
+                html: emailHtml
+            }
+        );
+    } else if (accountConfig) {
+        // Use Account Config directly via Provider
+        const provider = new EmailProvider();
+        await provider.send(accountConfig, normalizedEmail, '', {
+            subject: emailSubject,
+            html: emailHtml,
+            isHtml: true
+        });
+    }
 
     return invitation;
 }

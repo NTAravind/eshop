@@ -44,22 +44,9 @@ export default async function StoreAdminLayout({
         redirect("/admin");
     }
 
-    // Fetch store details for the header/title
-    const store = await storeService.getStoreWithAccount(storeId);
-    if (!store) {
-        return <div>Store not found</div>;
-    }
-
-    const stores = await storeService.listStoresForUser(tenant.userId);
-
-    // Context is already fetched above for validation
-    // const authContext = await getRbacContext({ storeId });
-
     return (
         <AuthProvider value={authContext}>
-            <AdminShell storeId={storeId} stores={stores}>
-                {children}
-            </AdminShell>
+            {children}
         </AuthProvider>
     );
 }
