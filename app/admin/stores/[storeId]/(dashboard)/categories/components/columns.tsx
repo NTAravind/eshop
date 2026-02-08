@@ -36,7 +36,7 @@ const CellAction = ({ data }: { data: CategoryColumn }) => {
     const onConfirm = async () => {
         try {
             setLoading(true);
-            await axios.delete(`/api/stores/${params.storeId}/categories/${data.id}`);
+            await axios.delete(`/api/admin/stores/${params.storeId}/categories/${data.id}`);
             toast.success("Category deleted.");
             router.refresh();
         } catch (error) {

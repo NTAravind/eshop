@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { DollarSign, ShoppingBag, Package, AlertTriangle } from "lucide-react";
 import { redirect } from "next/navigation";
+import { SeedStoreButton } from "@/components/admin/SeedStoreButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,10 @@ export default async function StoreDashboard({
 
     return (
         <div className="flex flex-col gap-6">
-            <h1 className="text-2xl font-bold tracking-tight">Store Overview</h1>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold tracking-tight">Store Overview</h1>
+                <SeedStoreButton storeId={storeId} />
+            </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>

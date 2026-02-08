@@ -78,6 +78,18 @@ export async function removeItem(storeId: string, cartId: string, variantId: str
     return cartDal.findCart(storeId, { cartId });
 }
 
+export async function clearCart(storeId: string, query: { userId?: string; sessionId?: string; cartId?: string }) {
+    const cart = await cartDal.findCart(storeId, query);
+    if (!cart) return null;
+
+    // Remove all items from cart
+    await cartDal.clearCart(cart.id);
+
+    await analyticsDal.logCartEvent(cart.id, 'CLEARED');
+
+    return cartDal.findCart(storeId, { cartId: cart.id });
+}
+
 export async function getAnalytics(storeId: string, start: Date, end: Date) {
     return analyticsDal.getCartAnalytics(storeId, start, end);
 }

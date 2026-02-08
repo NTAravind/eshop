@@ -12,7 +12,7 @@ import { getUserStoreRole } from '@/dal/store.dal';
  */
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { storeId: string; schemaId: string } }
+    { params }: { params: Promise<{ storeId: string; schemaId: string }> }
 ) {
     try {
         const session = await auth();
@@ -20,7 +20,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { storeId, schemaId } = params;
+        const { storeId, schemaId } = await params;
 
         // Check store access - Only OWNER and MANAGER can activate schemas
         const role = await getUserStoreRole(session.user.id, storeId);

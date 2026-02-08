@@ -1,5 +1,6 @@
 import * as variantDal from '@/dal/variant.dal';
 import { getUserStoreRole } from '@/dal/store.dal';
+import { indexVariantFacets } from './facet-sync.service';
 
 /**
  * Create a variant for a product
@@ -22,7 +23,13 @@ export async function createVariant(
         throw new Error('Unauthorized access to store');
     }
 
-    return variantDal.createVariant(productId, data);
+    const variant = await variantDal.createVariant(productId, data);
+
+    if (data.customData) {
+        await indexVariantFacets(variant.id);
+    }
+
+    return variant;
 }
 
 /**
@@ -46,7 +53,13 @@ export async function updateVariant(
         throw new Error('Unauthorized access to store');
     }
 
-    return variantDal.updateVariant(variantId, data);
+    const variant = await variantDal.updateVariant(variantId, data);
+
+    if (data.customData) {
+        await indexVariantFacets(variant.id);
+    }
+
+    return variant;
 }
 
 /**
@@ -129,5 +142,9 @@ export async function updateVariantCustomData(
     //   }
     // }
 
-    return variantDal.updateVariantCustomData(variantId, customData);
+    const variant = await variantDal.updateVariantCustomData(variantId, customData);
+
+    await indexVariantFacets(variant.id);
+
+    return variant;
 }

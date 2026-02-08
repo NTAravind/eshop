@@ -30,11 +30,11 @@ import { toast } from 'sonner';
 
 const formSchema = z.object({
     host: z.string().min(1, 'Host is required'),
-    port: z.coerce.number().min(1, 'Port is required'),
+    port: z.number().min(1, 'Port is required'),
     user: z.string().min(1, 'Username is required'),
     pass: z.string().min(1, 'Password is required'),
     from: z.string().email('Invalid email address'),
-    secure: z.boolean().default(true),
+    secure: z.boolean(),
 });
 
 export function EmailConfigDialog() {

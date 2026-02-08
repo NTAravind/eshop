@@ -12,18 +12,31 @@ export async function createProduct(
     categoryId?: string;
     productSchemaId?: string;
     customData?: Record<string, any>;
+    images?: string[];
     isActive?: boolean;
   }
 ) {
+  const { images, ...rest } = data;
   return prisma.product.create({
     data: {
       storeId,
-      name: data.name,
-      description: data.description,
-      categoryId: data.categoryId,
-      productSchemaId: data.productSchemaId,
-      customData: data.customData,
-      isActive: data.isActive ?? true,
+      name: rest.name,
+      description: rest.description,
+      categoryId: rest.categoryId,
+      productSchemaId: rest.productSchemaId,
+      customData: rest.customData,
+      isActive: rest.isActive ?? true,
+      ...(images && images.length > 0
+        ? {
+            images: {
+              create: images.map((url, index) => ({
+                url,
+                position: index,
+                alt: rest.name,
+              })),
+            },
+          }
+        : {}),
     },
     include: {
       category: true,
@@ -45,15 +58,31 @@ export async function updateProduct(
     categoryId?: string;
     productSchemaId?: string;
     customData?: Record<string, any>;
+    images?: string[];
     isActive?: boolean;
   }
 ) {
+  const { images, ...rest } = data;
   return prisma.product.update({
     where: {
       id: productId,
       storeId,
     },
-    data,
+    data: {
+      ...rest,
+      ...(images !== undefined
+        ? {
+            images: {
+              deleteMany: {},
+              create: images.map((url, index) => ({
+                url,
+                position: index,
+                alt: rest.name,
+              })),
+            },
+          }
+        : {}),
+    },
     include: {
       category: true,
       variants: true,
@@ -105,16 +134,21 @@ export async function listProducts(
   storeId: string,
   filters?: {
     categoryId?: string;
+    productSchemaId?: string;
     isActive?: boolean;
     search?: string;
     skip?: number;
     take?: number;
+    facets?: Record<string, string[]>; // code -> values (OR within facet, AND between facets)
   }
 ) {
   const where: Prisma.ProductWhereInput = {
     storeId,
     ...(filters?.categoryId && {
       categoryId: filters.categoryId,
+    }),
+    ...(filters?.productSchemaId && {
+      productSchemaId: filters.productSchemaId,
     }),
     ...(filters?.isActive !== undefined && { isActive: filters.isActive }),
     ...(filters?.search && {
@@ -124,6 +158,48 @@ export async function listProducts(
       ],
     }),
   };
+
+  // Append facet filters
+  if (filters?.facets && Object.keys(filters.facets).length > 0) {
+    const facetFilters: Prisma.ProductWhereInput[] = [];
+
+    Object.entries(filters.facets).forEach(([code, values]) => {
+      if (values.length === 0) return;
+
+      // Filter products that have matching ProductFacetValue OR matching VariantFacetValue
+      // We check via the relation to Facet (by code) and FacetValue (by value)
+      facetFilters.push({
+        OR: [
+          // Product-level match
+          {
+            facetValues: {
+              some: {
+                facet: { code },
+                facetValue: { value: { in: values } }
+              }
+            }
+          },
+          // Variant-level match
+          {
+            variants: {
+              some: {
+                facetValues: {
+                  some: {
+                    facet: { code },
+                    facetValue: { value: { in: values } }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      });
+    });
+
+    if (facetFilters.length > 0) {
+      where.AND = facetFilters;
+    }
+  }
 
   const [products, total] = await Promise.all([
     prisma.product.findMany({

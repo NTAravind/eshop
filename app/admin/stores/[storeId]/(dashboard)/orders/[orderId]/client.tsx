@@ -19,7 +19,7 @@ export function OrderDetailsClient({ order, storeId }: any) {
     const handleComplete = async () => {
         setIsCompleting(true);
         try {
-            const response = await fetch(`/api/stores/${storeId}/orders/${order.id}/complete`, {
+            const response = await fetch(`/api/admin/stores/${storeId}/orders/${order.id}/complete`, {
                 method: 'POST',
             });
             const result = await response.json();

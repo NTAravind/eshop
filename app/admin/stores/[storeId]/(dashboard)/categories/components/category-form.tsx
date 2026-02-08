@@ -67,12 +67,12 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
         try {
             setLoading(true);
             if (initialData) {
-                await fetch(`/api/stores/${params.storeId}/categories/${params.categoryId}`, {
+                await fetch(`/api/admin/stores/${params.storeId}/categories/${params.categoryId}`, {
                     method: "PATCH",
                     body: JSON.stringify(data),
                 });
             } else {
-                await fetch(`/api/stores/${params.storeId}/categories`, {
+                await fetch(`/api/admin/stores/${params.storeId}/categories`, {
                     method: "POST",
                     body: JSON.stringify(data),
                 });
@@ -90,7 +90,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     const onDelete = async () => {
         try {
             setLoading(true);
-            await fetch(`/api/stores/${params.storeId}/categories/${params.categoryId}`, {
+            await fetch(`/api/admin/stores/${params.storeId}/categories/${params.categoryId}`, {
                 method: "DELETE",
             });
             router.refresh();

@@ -363,7 +363,7 @@ export async function getTotalProductCount(accountId: string) {
       store: {
         accountId,
       },
-      deletedAt: null,
+      // deletedAt: null, // Removed as field doesn't exist
     },
   });
 }

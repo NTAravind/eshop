@@ -1,494 +1,461 @@
-"use client"
+'use client';
 
-import { useMemo, useState } from "react"
-import type { ReactNode } from "react"
-import type { ComponentDefinition, LayoutNode, StyleLayer, StyleObject } from "@/types/builder"
-import { styleLayerSchema } from "@/lib/builder/style-schema"
-import { actionRegistry, registerCoreActions } from "@/lib/builder/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+/**
+ * Inspector panel for the Storefront Builder
+ * Displays and edits properties, styles, and actions for the selected node
+ */
+
+import React from 'react';
+import { useEditorStore, selectSelectedNode } from '@/lib/builder/editor-store';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Paintbrush, Settings } from "lucide-react"
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import type { StorefrontNode, StyleObject } from '@/types/storefront-builder';
 
 interface InspectorProps {
-  node: LayoutNode | null
-  definition?: ComponentDefinition
-  onUpdate: (updater: (node: LayoutNode) => LayoutNode) => void
-  onDelete: () => void
+    className?: string;
 }
 
-type StyleLayerKey = "base" | "sm" | "md" | "lg" | "hover" | "pressed" | "focus" | "disabled"
+import { ThemePanel } from './ThemePanel';
 
-export function Inspector({ node, definition, onUpdate, onDelete }: InspectorProps) {
-  registerCoreActions()
+interface InspectorProps {
+    className?: string;
+}
 
-  const [styleLayer, setStyleLayer] = useState<StyleLayerKey>("base")
-  const [actionPayloadDrafts, setActionPayloadDrafts] = useState<Record<string, string>>({})
+export function Inspector({ className }: InspectorProps) {
+    const selectedNode = useEditorStore(selectSelectedNode);
+    const activeRightTab = useEditorStore((state) => state.activeRightTab);
+    const setActiveRightTab = useEditorStore((state) => state.setActiveRightTab);
+    const { updateNode } = useEditorStore();
 
-  const actionOptions = actionRegistry.list()
-  const bindingTargets = useMemo(() => {
-    const schema = definition?.bindingSchema as Record<string, unknown> | undefined
-    const properties = schema?.properties as Record<string, unknown> | undefined
-    const targets = properties ? Object.keys(properties) : []
-    if (node?.bindings) {
-      Object.keys(node.bindings).forEach((key) => {
-        if (!targets.includes(key)) {
-          targets.push(key)
-        }
-      })
+    const handlePropChange = (propName: string, value: unknown) => {
+        if (!selectedNode) return;
+        updateNode(selectedNode.id, {
+            props: {
+                ...selectedNode.props,
+                [propName]: value,
+            },
+        });
+    };
+
+    const handleStyleChange = (
+        breakpoint: keyof StyleObject,
+        property: string,
+        value: string
+    ) => {
+        if (!selectedNode) return;
+        const currentStyles = selectedNode.styles || {};
+        const currentBreakpoint = currentStyles[breakpoint] || {};
+
+        updateNode(selectedNode.id, {
+            styles: {
+                ...currentStyles,
+                [breakpoint]: {
+                    ...currentBreakpoint,
+                    [property]: value,
+                },
+            },
+        });
+    };
+
+    const EmptySelection = () => (
+        <div className="p-4 text-center text-sm text-muted-foreground">
+            Select an element to edit its properties
+        </div>
+    );
+
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return <div className={className} />;
     }
-    return targets
-  }, [definition?.bindingSchema, node?.bindings])
 
-  if (!node || !definition) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">
-        Select a component to edit
-      </div>
-    )
-  }
-
-  const handlePropsChange = (nextProps: Record<string, unknown>) => {
-    onUpdate((prev) => ({ ...prev, props: nextProps }))
-  }
-
-  const handleBindingsChange = (nextBindings: Record<string, string>) => {
-    onUpdate((prev) => ({ ...prev, bindings: nextBindings }))
-  }
-
-  const handleActionsChange = (nextActions: LayoutNode["actions"]) => {
-    onUpdate((prev) => ({ ...prev, actions: nextActions }))
-  }
-
-  const handleStylesChange = (nextLayer: StyleLayer) => {
-    onUpdate((prev) => {
-      const nextStyles: StyleObject = { ...prev.styles, base: prev.styles.base || {} }
-
-      if (styleLayer === "base") {
-        nextStyles.base = nextLayer
-      } else if (["sm", "md", "lg"].includes(styleLayer)) {
-        nextStyles.breakpoints = {
-          ...(nextStyles.breakpoints || {}),
-          [styleLayer]: nextLayer,
-        }
-      } else {
-        nextStyles.states = {
-          ...(nextStyles.states || {}),
-          [styleLayer]: nextLayer,
-        }
-      }
-
-      return { ...prev, styles: nextStyles }
-    })
-  }
-
-  const currentLayer = getStyleLayer(node.styles, styleLayer)
-  const styleDefinitions = (styleLayerSchema as Record<string, unknown>)
-    .definitions as Record<string, Record<string, unknown>>
-
-  const styleGroups = [
-    { key: "LayoutGroup", label: "Layout", dataKey: "layout" },
-    { key: "SpacingGroup", label: "Spacing", dataKey: "spacing" },
-    { key: "PositionGroup", label: "Position", dataKey: "position" },
-    { key: "FlexGroup", label: "Flex", dataKey: "flex" },
-    { key: "GridGroup", label: "Grid", dataKey: "grid" },
-    { key: "BackgroundGroup", label: "Background", dataKey: "background" },
-    { key: "BorderGroup", label: "Border", dataKey: "border" },
-    { key: "EffectsGroup", label: "Effects", dataKey: "effects" },
-    { key: "TypographyGroup", label: "Typography", dataKey: "typography" },
-    { key: "TransitionGroup", label: "Transition", dataKey: "transition" },
-  ]
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
-      <div className="flex items-center justify-between border-b px-4 py-3">
-        <div>
-          <div className="text-sm font-semibold">{definition.displayName}</div>
-          <div className="text-xs text-muted-foreground">{node.type}</div>
-        </div>
-        <Button variant="outline" size="sm" onClick={onDelete}>
-          Delete
-        </Button>
-      </div>
-
-      <Tabs defaultValue="settings" className="flex h-full flex-col">
-        <div className="border-b px-3 py-2">
-          <TabsList className="h-10 w-full justify-start gap-2 bg-transparent">
-            <TabsTrigger
-              value="settings"
-              className="h-10 px-4 data-[state=active]:bg-muted data-[state=active]:text-foreground"
+        <div className={className}>
+            <Tabs
+                value={activeRightTab}
+                onValueChange={(v) => setActiveRightTab(v as typeof activeRightTab)}
+                className="w-full"
             >
-              <Settings className="mr-2 h-4 w-4" />
-              <span className="text-xs">Settings</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="styles"
-              className="h-10 px-4 data-[state=active]:bg-muted data-[state=active]:text-foreground"
-            >
-              <Paintbrush className="mr-2 h-4 w-4" />
-              <span className="text-xs">Styles</span>
-            </TabsTrigger>
-          </TabsList>
+                <TabsList className="w-full grid grid-cols-4">
+                    <TabsTrigger value="properties">Props</TabsTrigger>
+                    <TabsTrigger value="styles">Styles</TabsTrigger>
+                    <TabsTrigger value="actions">Actions</TabsTrigger>
+                    <TabsTrigger value="theme">Theme</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="properties" className="p-4 space-y-4">
+                    {selectedNode ? (
+                        <PropertiesPanel node={selectedNode} onPropChange={handlePropChange} />
+                    ) : (
+                        <EmptySelection />
+                    )}
+                </TabsContent>
+
+                <TabsContent value="styles" className="p-4 space-y-4">
+                    {selectedNode ? (
+                        <StylesPanel node={selectedNode} onStyleChange={handleStyleChange} />
+                    ) : (
+                        <EmptySelection />
+                    )}
+                </TabsContent>
+
+                <TabsContent value="actions" className="p-4 space-y-4">
+                    {selectedNode ? (
+                        <ActionsPanel node={selectedNode} />
+                    ) : (
+                        <EmptySelection />
+                    )}
+                </TabsContent>
+
+                <TabsContent value="theme" className="h-[calc(100vh-8rem)]">
+                    <ThemePanel />
+                </TabsContent>
+            </Tabs>
         </div>
+    );
+}
 
-        <TabsContent value="settings" className="h-full overflow-auto px-3 py-4">
-          <div className="flex flex-col gap-3">
-            <AccordionSection title="Props" defaultOpen>
-              <SchemaEditor
-                schema={definition.propsSchema}
-                value={node.props}
-                onChange={handlePropsChange}
-              />
-            </AccordionSection>
+import { getRegistry } from '@/lib/storefront/registry/init';
+import { ColorPicker } from '@/components/builder/inputs/ColorPicker';
+import { ImagePicker } from '@/components/builder/inputs/ImagePicker';
 
-            <AccordionSection title="Bindings" defaultOpen>
-              {bindingTargets.length === 0 && (
-                <div className="text-sm text-muted-foreground">No bindable fields for this component.</div>
-              )}
-              <div className="flex flex-col gap-3">
-                {bindingTargets.map((target) => (
-                  <div key={target} className="space-y-2">
-                    <Label>{target}</Label>
-                    <Input
-                      value={node.bindings?.[target] || ""}
-                      placeholder="e.g. product.name"
-                      onChange={(event) =>
-                        handleBindingsChange({
-                          ...node.bindings,
-                          [target]: event.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </AccordionSection>
+/**
+ * Properties Panel
+ */
+interface PropertiesPanelProps {
+    node: StorefrontNode;
+    onPropChange: (propName: string, value: unknown) => void;
+}
 
-            <AccordionSection title="Actions" defaultOpen>
-              {(definition.actions || []).length === 0 && (
-                <div className="text-sm text-muted-foreground">No actions available for this component.</div>
-              )}
-              <div className="flex flex-col gap-4">
-                {(definition.actions || []).map((slot) => {
-                  const currentAction = node.actions?.[slot.name]
-                  const payloadKey = `${node.id}:${slot.name}`
-                  const payloadValue =
-                    actionPayloadDrafts[payloadKey] || JSON.stringify(currentAction?.payload || {}, null, 2)
+function PropertiesPanel({ node, onPropChange }: PropertiesPanelProps) {
+    const registry = getRegistry();
+    const definition = registry.components[node.type];
 
-                  return (
-                    <div key={slot.name} className="rounded-md border p-3">
-                      <div className="mb-2 text-sm font-semibold">{slot.label}</div>
-                      <div className="space-y-2">
-                        <Label>Action</Label>
-                        <Select
-                          value={currentAction?.actionId}
-                          onValueChange={(value) =>
-                            handleActionsChange({
-                              ...node.actions,
-                              [slot.name]: {
-                                actionId: value as LayoutNode["actions"][string]["actionId"],
-                                payload: currentAction?.payload || {},
-                              },
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select action" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {actionOptions.map((action) => (
-                              <SelectItem key={action.id} value={action.id}>
-                                {action.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+    // If registry has controls defined, use them
+    if (definition?.controls) {
+        return (
+            <div className="space-y-4">
+                <div className="text-sm font-medium flex items-center gap-2">
+                    <span className="text-muted-foreground">Type:</span>
+                    <span>{definition.displayName || node.type}</span>
+                </div>
 
-                        <Label>Payload (JSON)</Label>
-                        <Textarea
-                          value={payloadValue}
-                          onChange={(event) =>
-                            setActionPayloadDrafts((prev) => ({
-                              ...prev,
-                              [payloadKey]: event.target.value,
-                            }))
-                          }
-                          onBlur={() => {
-                            try {
-                              const parsed = JSON.parse(payloadValue)
-                              handleActionsChange({
-                                ...node.actions,
-                                [slot.name]: {
-                                  actionId: currentAction?.actionId || actionOptions[0]?.id,
-                                  payload: parsed,
-                                },
-                              })
-                            } catch (error) {
-                              console.warn("Invalid JSON payload", error)
-                            }
-                          }}
-                          rows={4}
-                        />
-                      </div>
+                {Object.entries(definition.controls).map(([propName, control]) => (
+                    <div key={propName} className="space-y-2">
+                        <Label htmlFor={propName} className="text-xs capitalize">
+                            {control.label || propName}
+                        </Label>
+
+                        {control.type === 'text' && (
+                            <Input
+                                id={propName}
+                                value={(node.props[propName] as string) || ''}
+                                onChange={(e) => onPropChange(propName, e.target.value)}
+                            />
+                        )}
+                        {control.type === 'textarea' && (
+                            <Textarea
+                                id={propName}
+                                value={(node.props[propName] as string) || ''}
+                                onChange={(e) => onPropChange(propName, e.target.value)}
+                                rows={3}
+                            />
+                        )}
+                        {control.type === 'number' && (
+                            <Input
+                                id={propName}
+                                type="number"
+                                value={(node.props[propName] as number) || 0}
+                                onChange={(e) => onPropChange(propName, Number(e.target.value))}
+                                min={control.min}
+                                max={control.max}
+                                step={control.step}
+                            />
+                        )}
+                        {control.type === 'boolean' && (
+                            <Switch
+                                id={propName}
+                                checked={(node.props[propName] as boolean) || false}
+                                onCheckedChange={(checked) => onPropChange(propName, checked)}
+                            />
+                        )}
+                        {control.type === 'select' && control.options && (
+                            <Select
+                                value={(node.props[propName] as string) || ''}
+                                onValueChange={(value) => onPropChange(propName, value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {control.options.map((opt) => {
+                                        const label = typeof opt === 'string' ? opt : opt.label;
+                                        const value = typeof opt === 'string' ? opt : opt.value;
+                                        return (
+                                            <SelectItem key={value} value={value}>
+                                                {label}
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
+                        )}
+                        {control.type === 'color' && (
+                            <ColorPicker
+                                value={(node.props[propName] as string) || ''}
+                                onChange={(value) => onPropChange(propName, value)}
+                            />
+                        )}
+                        {control.type === 'image' && (
+                            <ImagePicker
+                                value={(node.props[propName] as string) || ''}
+                                onChange={(value) => onPropChange(propName, value)}
+                            />
+                        )}
+                        {control.type === 'icon' && (
+                            <Input
+                                id={propName}
+                                value={(node.props[propName] as string) || ''}
+                                onChange={(e) => onPropChange(propName, e.target.value)}
+                                placeholder="Icon name (Lucide)"
+                            />
+                        )}
                     </div>
-                  )
-                })}
-              </div>
-            </AccordionSection>
-          </div>
-        </TabsContent>
+                ))}
 
-        <TabsContent value="styles" className="h-full overflow-auto px-3 py-4">
-          <div className="mb-3 flex items-center justify-between">
-            <Label>Layer</Label>
-            <Select value={styleLayer} onValueChange={(value) => setStyleLayer(value as StyleLayerKey)}>
-              <SelectTrigger size="sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="base">Base</SelectItem>
-                <SelectItem value="sm">Breakpoint sm</SelectItem>
-                <SelectItem value="md">Breakpoint md</SelectItem>
-                <SelectItem value="lg">Breakpoint lg</SelectItem>
-                <SelectItem value="hover">State hover</SelectItem>
-                <SelectItem value="pressed">State pressed</SelectItem>
-                <SelectItem value="focus">State focus</SelectItem>
-                <SelectItem value="disabled">State disabled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                {/* ID field (read-only) */}
+                <div className="space-y-2 pt-4 border-t">
+                    <Label className="text-xs text-muted-foreground">ID</Label>
+                    <Input value={node.id} readOnly className="font-mono text-xs bg-muted/50" />
+                </div>
+            </div>
+        );
+    }
 
-          <div className="flex flex-col gap-3">
-            {styleGroups.map((group) => {
-              const groupSchema = styleDefinitions?.[group.key]
-              if (!groupSchema) {
-                return null
-              }
+    // Fallback for legacy/missing definitions
+    const commonProps: { name: string; type: 'text' | 'textarea' | 'number' | 'boolean' | 'select'; options?: string[] }[] = [];
 
-              const groupValue =
-                ((currentLayer as Record<string, unknown>) || {})[group.dataKey] || {}
+    // Add type-specific props
+    switch (node.type) {
+        case 'Heading':
+        case 'Text':
+            commonProps.push({ name: 'text', type: 'textarea' });
+            if (node.type === 'Heading') {
+                commonProps.push({ name: 'level', type: 'select', options: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] });
+            }
+            break;
+        case 'Button':
+        case 'Link':
+            commonProps.push({ name: 'text', type: 'text' });
+            commonProps.push({ name: 'href', type: 'text' });
+            break;
+        case 'Image':
+            commonProps.push({ name: 'src', type: 'text' });
+            commonProps.push({ name: 'alt', type: 'text' });
+            break;
+    }
 
-              return (
-                <AccordionSection key={group.key} title={group.label}>
-                  <SchemaEditor
-                    schema={{
-                      type: "object",
-                      properties: groupSchema.properties || {},
-                      definitions: styleDefinitions,
-                    }}
-                    value={groupValue as Record<string, unknown>}
-                    onChange={(nextValue) => {
-                      const nextLayer = {
-                        ...(currentLayer as Record<string, unknown>),
-                        [group.dataKey]: nextValue,
-                      }
-                      handleStylesChange(nextLayer as StyleLayer)
-                    }}
-                  />
-                </AccordionSection>
-              )
-            })}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
-
-interface SchemaEditorProps {
-  schema: Record<string, unknown>
-  value: Record<string, unknown>
-  onChange: (nextValue: Record<string, unknown>) => void
-}
-
-function SchemaEditor({ schema, value, onChange }: SchemaEditorProps) {
-  const resolved = resolveSchema(schema)
-  if (!resolved || resolved.type !== "object") {
-    return null
-  }
-
-  const properties = (resolved.properties || {}) as Record<string, Record<string, unknown>>
-  const definitions = (resolved.definitions || {}) as Record<string, Record<string, unknown>>
-
-  return (
-    <div className="space-y-3">
-      {Object.entries(properties).map(([key, childSchema]) => (
-        <SchemaField
-          key={key}
-          label={key}
-          schema={childSchema}
-          value={value?.[key]}
-          definitions={definitions}
-          onChange={(next) => onChange({ ...value, [key]: next })}
-        />
-      ))}
-    </div>
-  )
-}
-
-interface SchemaFieldProps {
-  label: string
-  schema: Record<string, unknown>
-  value: unknown
-  definitions?: Record<string, Record<string, unknown>>
-  onChange: (nextValue: unknown) => void
-}
-
-function SchemaField({ label, schema, value, onChange, definitions }: SchemaFieldProps) {
-  const resolved = resolveSchema(schema, definitions)
-
-  if (!resolved) {
-    return null
-  }
-
-  if (resolved.type === "object" && resolved.properties) {
-    const properties = resolved.properties as Record<string, Record<string, unknown>>
     return (
-      <div className="space-y-2 rounded-md border p-3">
-        <div className="text-xs font-semibold uppercase text-muted-foreground">{label}</div>
-        <div className="space-y-3">
-          {Object.entries(properties).map(([childKey, childSchema]) => (
-            <SchemaField
-              key={childKey}
-              label={childKey}
-              schema={childSchema}
-              value={(value as Record<string, unknown>)?.[childKey]}
-              definitions={definitions}
-              onChange={(next) => {
-                const current = (value as Record<string, unknown>) || {}
-                onChange({ ...current, [childKey]: next })
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  }
+        <div className="space-y-4">
+            <div className="text-sm font-medium flex items-center gap-2">
+                <span className="text-muted-foreground">Type:</span>
+                <span>{node.type}</span>
+            </div>
 
-  if (resolved.enum) {
-    const options = resolved.enum as string[]
-    return (
-      <div className="space-y-2">
-        <Label>{label}</Label>
-        <Select
-          value={value as string}
-          onValueChange={(next) => onChange(next)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select" />
-          </SelectTrigger>
-          <SelectContent>
-            {options.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
+            {commonProps.map(({ name, type, options }) => (
+                <div key={name} className="space-y-2">
+                    <Label htmlFor={name} className="text-xs capitalize">
+                        {name}
+                    </Label>
+                    {type === 'text' && (
+                        <Input
+                            id={name}
+                            value={(node.props[name] as string) || ''}
+                            onChange={(e) => onPropChange(name, e.target.value)}
+                        />
+                    )}
+                    {type === 'textarea' && (
+                        <Textarea
+                            id={name}
+                            value={(node.props[name] as string) || ''}
+                            onChange={(e) => onPropChange(name, e.target.value)}
+                            rows={3}
+                        />
+                    )}
+                    {type === 'number' && (
+                        <Input
+                            id={name}
+                            type="number"
+                            value={(node.props[name] as number) || 0}
+                            onChange={(e) => onPropChange(name, Number(e.target.value))}
+                        />
+                    )}
+                    {type === 'boolean' && (
+                        <Switch
+                            id={name}
+                            checked={(node.props[name] as boolean) || false}
+                            onCheckedChange={(checked) => onPropChange(name, checked)}
+                        />
+                    )}
+                    {type === 'select' && options && (
+                        <Select
+                            value={(node.props[name] as string) || options[0]}
+                            onValueChange={(value) => onPropChange(name, value)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {options.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                        {opt}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </div>
             ))}
-          </SelectContent>
-        </Select>
-      </div>
-    )
-  }
 
-  if (resolved.type === "boolean") {
+            {/* ID field (read-only) */}
+            <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">ID</Label>
+                <Input value={node.id} readOnly className="font-mono text-xs" />
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Styles Panel
+ */
+interface StylesPanelProps {
+    node: StorefrontNode;
+    onStyleChange: (breakpoint: keyof StyleObject, property: string, value: string) => void;
+}
+
+function StylesPanel({ node, onStyleChange }: StylesPanelProps) {
+    const baseStyles = node.styles?.base || {};
+
+    const styleProperties: { name: string; cssProperty: string; type: 'text' | 'color' | 'select'; options?: string[] }[] = [
+        { name: 'Width', cssProperty: 'width', type: 'text' },
+        { name: 'Height', cssProperty: 'height', type: 'text' },
+        { name: 'Padding', cssProperty: 'padding', type: 'text' },
+        { name: 'Margin', cssProperty: 'margin', type: 'text' },
+        { name: 'Background', cssProperty: 'backgroundColor', type: 'color' },
+        { name: 'Color', cssProperty: 'color', type: 'color' },
+        { name: 'Font Size', cssProperty: 'fontSize', type: 'text' },
+        { name: 'Font Weight', cssProperty: 'fontWeight', type: 'select', options: ['normal', 'bold', '100', '200', '300', '400', '500', '600', '700', '800', '900'] },
+        { name: 'Display', cssProperty: 'display', type: 'select', options: ['block', 'flex', 'grid', 'inline', 'inline-block', 'none'] },
+        { name: 'Justify', cssProperty: 'justifyContent', type: 'select', options: ['flex-start', 'flex-end', 'center', 'space-between', 'space-around'] },
+        { name: 'Align', cssProperty: 'alignItems', type: 'select', options: ['flex-start', 'flex-end', 'center', 'stretch', 'baseline'] },
+        { name: 'Gap', cssProperty: 'gap', type: 'text' },
+        { name: 'Border Radius', cssProperty: 'borderRadius', type: 'text' },
+    ];
+
     return (
-      <label className="flex items-center justify-between gap-2 text-sm">
-        <span>{label}</span>
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-      </label>
-    )
-  }
+        <div className="space-y-4">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Base Styles
+            </div>
 
-  if (resolved.type === "number" || resolved.type === "integer") {
+            <div className="grid grid-cols-2 gap-3">
+                {styleProperties.map(({ name, cssProperty, type, options }) => (
+                    <div key={cssProperty} className="space-y-1">
+                        <Label className="text-xs">{name}</Label>
+                        {type === 'text' && (
+                            <Input
+                                value={(baseStyles as Record<string, string>)[cssProperty] || ''}
+                                onChange={(e) => onStyleChange('base', cssProperty, e.target.value)}
+                                className="h-8 text-xs"
+                            />
+                        )}
+                        {type === 'color' && (
+                            <div className="flex gap-1">
+                                <Input
+                                    type="color"
+                                    value={(baseStyles as Record<string, string>)[cssProperty] || '#000000'}
+                                    onChange={(e) => onStyleChange('base', cssProperty, e.target.value)}
+                                    className="h-8 w-10 p-1"
+                                />
+                                <Input
+                                    value={(baseStyles as Record<string, string>)[cssProperty] || ''}
+                                    onChange={(e) => onStyleChange('base', cssProperty, e.target.value)}
+                                    className="h-8 text-xs flex-1"
+                                />
+                            </div>
+                        )}
+                        {type === 'select' && options && (
+                            <Select
+                                value={(baseStyles as Record<string, string>)[cssProperty] || ''}
+                                onValueChange={(value) => onStyleChange('base', cssProperty, value)}
+                            >
+                                <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="Select..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {options.map((opt) => (
+                                        <SelectItem key={opt} value={opt}>
+                                            {opt}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Actions Panel
+ */
+interface ActionsPanelProps {
+    node: StorefrontNode;
+}
+
+function ActionsPanel({ node }: ActionsPanelProps) {
+    const actions = node.actions || {};
+
     return (
-      <div className="space-y-2">
-        <Label>{label}</Label>
-        <Input
-          type="number"
-          value={(value as number | string) ?? ""}
-          onChange={(event) => onChange(event.target.value === "" ? undefined : Number(event.target.value))}
-        />
-      </div>
-    )
-  }
+        <div className="space-y-4">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Actions
+            </div>
 
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input value={(value as string) || ""} onChange={(event) => onChange(event.target.value)} />
-    </div>
-  )
-}
-
-interface AccordionSectionProps {
-  title: string
-  children: ReactNode
-  defaultOpen?: boolean
-}
-
-function AccordionSection({ title, children, defaultOpen = false }: AccordionSectionProps) {
-  const [open, setOpen] = useState(defaultOpen)
-
-  return (
-    <div className="rounded-lg border">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold"
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span>{title}</span>
-        <span className="text-xs text-muted-foreground">{open ? "Hide" : "Show"}</span>
-      </button>
-      {open && <div className="border-t px-3 py-3">{children}</div>}
-    </div>
-  )
-}
-
-function resolveSchema(
-  schema: Record<string, unknown>,
-  definitions?: Record<string, Record<string, unknown>>
-) {
-  if (!schema) {
-    return null
-  }
-
-  if (schema.$ref && typeof schema.$ref === "string") {
-    const ref = schema.$ref as string
-    const key = ref.replace("#/definitions/", "")
-    const schemaDefinitions = schema.definitions as Record<string, Record<string, unknown>> | undefined
-    if (schemaDefinitions?.[key]) {
-      return schemaDefinitions[key]
-    }
-    if (definitions?.[key]) {
-      return definitions[key]
-    }
-  }
-
-  if (schema.definitions) {
-    return schema
-  }
-
-  return schema
-}
-
-function getStyleLayer(styles: StyleObject, layer: StyleLayerKey) {
-  if (layer === "base") {
-    return styles.base || {}
-  }
-  if (["sm", "md", "lg"].includes(layer)) {
-    return styles.breakpoints?.[layer] || {}
-  }
-  return styles.states?.[layer] || {}
+            {Object.keys(actions).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No actions configured for this element.
+                </p>
+            ) : (
+                <div className="space-y-2">
+                    {Object.entries(actions).map(([event, action]) => (
+                        <div key={event} className="p-3 bg-muted rounded-md">
+                            <div className="text-sm font-medium">{event}</div>
+                            <div className="text-xs text-muted-foreground">
+                                {action.actionId}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }

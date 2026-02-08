@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const nextConfig = {
   /* config options here */
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**" },
+      { protocol: "https", hostname: "source.unsplash.com", pathname: "/**" },
+    ],
+  },
   async headers() {
     return [
       {
@@ -16,6 +22,6 @@ const nextConfig: NextConfig = {
       }
     ]
   }
-};
+} satisfies import("next").NextConfig;
 
 export default nextConfig;

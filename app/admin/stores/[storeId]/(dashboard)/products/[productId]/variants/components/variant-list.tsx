@@ -53,7 +53,7 @@ export const VariantList: React.FC<VariantListProps> = ({ variants, productId })
         try {
             setLoading(true);
             await axios.delete(
-                `/api/stores/${params.storeId}/products/${productId}/variants/${deleteModal.id}`
+                `/api/admin/stores/${params.storeId}/products/${productId}/variants/${deleteModal.id}`
             );
             toast.success("Variant deleted");
             router.refresh();

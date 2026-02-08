@@ -156,6 +156,12 @@ export async function removeItemFromCart(storeId: string, cartId: string, varian
     });
 }
 
+export async function clearCart(cartId: string) {
+    return prisma.cartItem.deleteMany({
+        where: { cartId }
+    });
+}
+
 export async function deleteCart(storeId: string, cartId: string) {
     return prisma.cart.deleteMany({
         where: {

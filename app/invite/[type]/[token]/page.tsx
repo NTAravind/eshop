@@ -26,9 +26,9 @@ export default function InvitePage() {
         if (!token || !type) return;
 
         // Validate token on load
-        fetch(`/api/invitations/accept?token=${token}&type=${type}`, { method: 'GET' }) // Wait, GET route is /api/invitations/validate
-            // Oh, I named the GET route in /api/invitations/accept/route.ts as GET. 
-            // So the path is /api/invitations/accept?token=...
+        fetch(`/api/platform/invitations/accept?token=${token}&type=${type}`, { method: 'GET' }) // Wait, GET route is /api/platform/invitations/validate
+            // Oh, I named the GET route in /api/platform/invitations/accept/route.ts as GET. 
+            // So the path is /api/platform/invitations/accept?token=...
             .then(res => res.json())
             .then(data => {
                 if (data.valid) {
@@ -48,7 +48,7 @@ export default function InvitePage() {
 
         setAccepting(true);
         try {
-            const res = await fetch('/api/invitations/accept', {
+            const res = await fetch('/api/platform/invitations/accept', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

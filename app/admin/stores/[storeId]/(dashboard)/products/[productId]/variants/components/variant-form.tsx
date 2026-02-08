@@ -101,12 +101,12 @@ export const VariantForm: React.FC<VariantFormProps> = ({
 
             if (initialData) {
                 await axios.patch(
-                    `/api/stores/${params.storeId}/products/${productId}/variants/${initialData.id}`,
+                    `/api/admin/stores/${params.storeId}/products/${productId}/variants/${initialData.id}`,
                     variantData
                 );
             } else {
                 await axios.post(
-                    `/api/stores/${params.storeId}/products/${productId}/variants`,
+                    `/api/admin/stores/${params.storeId}/products/${productId}/variants`,
                     variantData
                 );
             }
@@ -125,7 +125,7 @@ export const VariantForm: React.FC<VariantFormProps> = ({
         try {
             setLoading(true);
             await axios.delete(
-                `/api/stores/${params.storeId}/products/${productId}/variants/${initialData.id}`
+                `/api/admin/stores/${params.storeId}/products/${productId}/variants/${initialData.id}`
             );
             router.refresh();
             router.push(`/admin/stores/${params.storeId}/products/${productId}/variants`);

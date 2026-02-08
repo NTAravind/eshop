@@ -29,7 +29,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         try {
             setLoading(true);
             // Delete endpoint not implemented yet, but good to have ready
-            // await fetch(`/api/stores/${params.storeId}/product-schemas/${data.id}`, {
+            // await fetch(`/api/admin/stores/${params.storeId}/product-schemas/${data.id}`, {
             //     method: "DELETE",
             // });
             toast.success("Schema deleted.");

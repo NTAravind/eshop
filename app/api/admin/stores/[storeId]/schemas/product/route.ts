@@ -18,7 +18,7 @@ import { getUserStoreRole } from '@/dal/store.dal';
  */
 export async function GET(
     req: NextRequest,
-    { params }: { params: { storeId: string } }
+    { params }: { params: Promise<{ storeId: string }> }
 ) {
     try {
         const session = await auth();
@@ -26,7 +26,7 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { storeId } = params;
+        const { storeId } = await params;
 
         // Check store access
         const role = await getUserStoreRole(session.user.id, storeId);
@@ -60,7 +60,7 @@ export async function GET(
  */
 export async function POST(
     req: NextRequest,
-    { params }: { params: { storeId: string } }
+    { params }: { params: Promise<{ storeId: string }> }
 ) {
     try {
         const session = await auth();
@@ -68,7 +68,7 @@ export async function POST(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { storeId } = params;
+        const { storeId } = await params;
 
         // Check store access - Only OWNER and MANAGER can create schemas
         const role = await getUserStoreRole(session.user.id, storeId);

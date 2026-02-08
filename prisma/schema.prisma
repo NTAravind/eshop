@@ -83,6 +83,19 @@ enum NotificationStatus {
   FAILED
 }
 
+enum StorefrontDocKind {
+  LAYOUT
+  PAGE
+  TEMPLATE
+  PREFAB
+}
+
+enum StorefrontDocStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 ////////////////////
 /// USERS (Auth.js)
 ////////////////////
@@ -347,26 +360,14 @@ model Store {
   productSchemas ProductSchema[]
   variantSchemas VariantSchema[]
   carts          Cart[]
-  layouts        Layout[]
+  facets         Facet[]
+  storefrontDocuments  StorefrontDocument[]
+  storefrontThemes     StorefrontTheme[]
+  storefrontSettings   StorefrontSettings?
 
   @@index([slug])
   @@index([accountId])
 }
-
-model Layout {
-  id          String   @id @default(cuid())
-  storeId     String
-  page        String
-  tree        Json
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  @@unique([storeId, page, isPublished])
-  @@index([storeId])
-}
-
 ////////////////////
 /// STORE STAFF (RBAC)
 ////////////////////
@@ -408,6 +409,7 @@ model Product {
   images          Image[]
 
   discountProducts DiscountProduct[]
+  facetValues      ProductFacetValue[]
 
   @@index([storeId])
   @@index([storeId, isActive])
@@ -428,8 +430,9 @@ model ProductVariant {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   images  Image[]
 
-  orderLines OrderLine[]
-  cartItems  CartItem[]
+  orderLines  OrderLine[]
+  cartItems   CartItem[]
+  facetValues VariantFacetValue[]
 
   @@index([productId])
   @@index([productId, isActive])
@@ -471,6 +474,7 @@ model ProductSchema {
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
   products Product[]
+  facets   Facet[]
 
   @@unique([storeId, name, version])
   @@index([storeId, isActive])
@@ -486,7 +490,8 @@ model VariantSchema {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store  Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  facets Facet[]
 
   @@unique([storeId, version])
   @@index([storeId, isActive])
@@ -818,11 +823,14 @@ model NotificationLog {
 model NotificationTemplate {
   id        String              @id @default(cuid())
   storeId   String
-  name      String
+  eventType String
   channel   NotificationChannel
   subject   String?             // For Email/Push title
   content   String              @db.Text
   
+  whatsappTemplateName String?
+  whatsappLanguageCode String?
+
   // Variables used in this template for validation/preview
   variables String[] // e.g. ["customerName", "orderId", "total"]
   
@@ -832,7 +840,7 @@ model NotificationTemplate {
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  @@unique([storeId, name])
+  @@unique([storeId, channel, eventType])
   @@index([storeId, channel])
 }
 
@@ -902,4 +910,140 @@ model CartEvent {
   @@index([cartId])
   @@index([type])
   @@index([createdAt])
+}
+
+////////////////////
+/// FACETS (SCHEMA-DRIVEN FILTERS)
+////////////////////
+
+enum SchemaType {
+  PRODUCT
+  VARIANT
+}
+
+// Facets are now auto-generated from ProductSchema/VariantSchema fields marked as isFilterable
+model Facet {
+  id              String       @id @default(cuid())
+  storeId         String
+  name            String       // Human-readable name (from field.label)
+  code            String       // Unique code (from field.name)
+  schemaFieldName String       // The field name in the schema's fields JSON
+  schemaType      SchemaType   // Whether this is from ProductSchema or VariantSchema
+  
+  // Optional: Reference to specific schema (can be null if applies to all schemas with this field)
+  productSchemaId String?
+  variantSchemaId String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  productSchema   ProductSchema? @relation(fields: [productSchemaId], references: [id], onDelete: Cascade)
+  variantSchema   VariantSchema? @relation(fields: [variantSchemaId], references: [id], onDelete: Cascade)
+  values          FacetValue[]
+  productFacets   ProductFacetValue[]
+  variantFacets   VariantFacetValue[]
+
+  @@unique([storeId, code, schemaType])
+  @@index([storeId, schemaType])
+  @@index([productSchemaId])
+  @@index([variantSchemaId])
+}
+
+// Possible values for a facet (auto-populated from product/variant data)
+model FacetValue {
+  id        String   @id @default(cuid())
+  facetId   String
+  value     String   // The actual value (e.g., "Red", "Large", "Cotton")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  facet         Facet               @relation(fields: [facetId], references: [id], onDelete: Cascade)
+  productFacets ProductFacetValue[]
+  variantFacets VariantFacetValue[]
+
+  @@unique([facetId, value]) // Each facet can have unique values
+  @@index([facetId])
+}
+
+// Junction table: Products <-> Facet Values (for product-level filterable fields)
+model ProductFacetValue {
+  productId     String
+  facetId       String
+  facetValueId  String
+  
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  facet         Facet      @relation(fields: [facetId], references: [id], onDelete: Cascade)
+  facetValue    FacetValue @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
+
+  @@id([productId, facetId])
+  @@index([productId])
+  @@index([facetId])
+  @@index([facetValueId])
+  @@index([facetId, facetValueId]) // For filtering: get all products with specific facet value
+}
+
+// Junction table: Variants <-> Facet Values (for variant-level filterable fields)
+model VariantFacetValue {
+  variantId     String
+  facetId       String
+  facetValueId  String
+  
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  facet         Facet          @relation(fields: [facetId], references: [id], onDelete: Cascade)
+  facetValue    FacetValue     @relation(fields: [facetValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, facetId])
+  @@index([variantId])
+  @@index([facetId])
+  @@index([facetValueId])
+  @@index([facetId, facetValueId]) // For filtering: get all variants with specific facet value
+}
+
+////////////////////
+/// STOREFRONT BUILDER
+////////////////////
+
+model StorefrontDocument {
+  id        String               @id @default(cuid())
+  storeId   String
+  kind      StorefrontDocKind
+  key       String               // e.g., "GLOBAL_LAYOUT", "HOME", "PDP:default"
+  status    StorefrontDocStatus
+  tree      Json                 // StorefrontNode tree
+  meta      Json?                // Optional metadata (layoutRefs, etc.)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, kind, key, status])
+  @@index([storeId, kind, status])
+  @@index([storeId, status])
+}
+
+model StorefrontTheme {
+  id        String               @id @default(cuid())
+  storeId   String
+  status    StorefrontDocStatus
+  vars      Json                 // CSS variable map (shadcn tokens)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, status])
+  @@index([storeId])
+}
+
+model StorefrontSettings {
+  id              String   @id @default(cuid())
+  storeId         String   @unique
+  deliveryModes   Json?    // ["DELIVERY", "PICKUP"]
+  checkoutFields  Json?    // Required checkout fields config
+  profileFields   Json?    // Profile fields config
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }

@@ -58,7 +58,9 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const [loading, setLoading] = useState(false);
     const [jsonMode, setJsonMode] = useState(false);
     const [imageUrls, setImageUrls] = useState<string[]>(
-        (initialData?.customData?.images as string[]) || []
+        (initialData?.images?.map((img: any) => img.url) as string[]) ||
+        (initialData?.customData?.images as string[]) ||
+        []
     );
 
     // Find active schema based on selection or initial data
@@ -110,25 +112,24 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         try {
             setLoading(true);
 
-            // Merge images into customData
-            const customDataWithImages = {
-                ...data.customData,
-                images: imageUrls.filter(url => url.trim() !== '')
-            };
-
             const submitData = {
                 ...data,
-                customData: customDataWithImages
+                images: imageUrls
+                    .filter((url) => typeof url === 'string')
+                    .map((url) => url.trim())
+                    .filter((url) => url !== ''),
             };
 
             if (initialData) {
-                await fetch(`/api/stores/${params.storeId}/products/${params.productId}`, {
+                await fetch(`/api/admin/stores/${params.storeId}/products/${params.productId}`, {
                     method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(submitData),
                 });
             } else {
-                const response = await fetch(`/api/stores/${params.storeId}/products`, {
+                const response = await fetch(`/api/admin/stores/${params.storeId}/products`, {
                     method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(submitData),
                 });
                 const product = await response.json();
@@ -460,67 +461,70 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                     />
                                 ) : (
                                     <div className="grid grid-cols-2 gap-6">
-                                        {schemaFields.map((field) => (
-                                            <FormField
-                                                key={field.key}
-                                                control={form.control}
-                                                name={`customData.${field.key}`}
-                                                render={({ field: inputField }) => (
-                                                    <FormItem>
-                                                        <FormLabel>
-                                                            {field.label}
-                                                            {field.required && <span className="text-destructive ml-1">*</span>}
-                                                        </FormLabel>
-                                                        <FormControl>
-                                                            {field.type === 'boolean' ? (
-                                                                <div className="flex items-center space-x-2">
-                                                                    <Checkbox
-                                                                        checked={inputField.value}
-                                                                        onCheckedChange={inputField.onChange}
+                                        {schemaFields.map((field) => {
+                                            const fieldKey = field.key || field.name;
+                                            return (
+                                                <FormField
+                                                    key={fieldKey}
+                                                    control={form.control}
+                                                    name={`customData.${fieldKey}`}
+                                                    render={({ field: inputField }) => (
+                                                        <FormItem>
+                                                            <FormLabel>
+                                                                {field.label}
+                                                                {field.required && <span className="text-destructive ml-1">*</span>}
+                                                            </FormLabel>
+                                                            <FormControl>
+                                                                {field.type === 'boolean' ? (
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <Checkbox
+                                                                            checked={!!inputField.value} // ensure boolean
+                                                                            onCheckedChange={inputField.onChange}
+                                                                        />
+                                                                        <span className="text-sm text-muted-foreground">{field.label}</span>
+                                                                    </div>
+                                                                ) : field.type === 'select' ? (
+                                                                    <Select
+                                                                        onValueChange={inputField.onChange}
+                                                                        value={inputField.value}
+                                                                    >
+                                                                        <FormControl>
+                                                                            <SelectTrigger>
+                                                                                <SelectValue placeholder={`Select ${field.label}`} />
+                                                                            </SelectTrigger>
+                                                                        </FormControl>
+                                                                        <SelectContent>
+                                                                            {(field.options as string[])?.map((opt) => (
+                                                                                <SelectItem key={opt} value={opt}>
+                                                                                    {opt}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                ) : field.type === 'date' ? (
+                                                                    <Input
+                                                                        type="date"
+                                                                        {...inputField}
+                                                                        value={inputField.value ? format(new Date(inputField.value), 'yyyy-MM-dd') : ''}
                                                                     />
-                                                                    <span className="text-sm text-muted-foreground">{field.label}</span>
-                                                                </div>
-                                                            ) : field.type === 'select' ? (
-                                                                <Select
-                                                                    onValueChange={inputField.onChange}
-                                                                    value={inputField.value}
-                                                                >
-                                                                    <FormControl>
-                                                                        <SelectTrigger>
-                                                                            <SelectValue placeholder={`Select ${field.label}`} />
-                                                                        </SelectTrigger>
-                                                                    </FormControl>
-                                                                    <SelectContent>
-                                                                        {(field.options as string[])?.map((opt) => (
-                                                                            <SelectItem key={opt} value={opt}>
-                                                                                {opt}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            ) : field.type === 'date' ? (
-                                                                <Input
-                                                                    type="date"
-                                                                    {...inputField}
-                                                                    value={inputField.value ? format(new Date(inputField.value), 'yyyy-MM-dd') : ''}
-                                                                />
-                                                            ) : (
-                                                                <Input
-                                                                    type={field.type === 'number' ? 'number' : 'text'}
-                                                                    {...inputField}
-                                                                    value={inputField.value ?? ''}
-                                                                    onChange={(e) => {
-                                                                        const val = field.type === 'number' ? parseFloat(e.target.value) : e.target.value;
-                                                                        inputField.onChange(val);
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        ))}
+                                                                ) : (
+                                                                    <Input
+                                                                        type={field.type === 'number' ? 'number' : 'text'}
+                                                                        {...inputField}
+                                                                        value={inputField.value ?? ''}
+                                                                        onChange={(e) => {
+                                                                            const val = field.type === 'number' ? parseFloat(e.target.value) : e.target.value;
+                                                                            inputField.onChange(val);
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </CardContent>

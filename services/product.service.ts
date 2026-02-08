@@ -1,7 +1,9 @@
+
 import * as productDal from '@/dal/product.dal';
 import * as subscriptionDal from '@/dal/subscription.dal';
 import * as usageService from '@/services/usage.service';
 import { requireStoreRole } from '@/lib/auth/requireStore';
+import { indexProductFacets } from './facet-sync.service';
 
 export async function createProduct(
   userId: string,
@@ -12,6 +14,7 @@ export async function createProduct(
     categoryId?: string;
     productSchemaId?: string;
     customData?: Record<string, any>;
+    images?: string[];
     isActive?: boolean;
   }
 ) {
@@ -41,6 +44,11 @@ export async function createProduct(
   // RECORD PRODUCT CREATION
   await usageService.recordProductCreation(account.id);
 
+  // INDEX FACETS
+  if (product.customData) {
+    await indexProductFacets(product.id);
+  }
+
   return product;
 }
 
@@ -54,6 +62,7 @@ export async function updateProduct(
     categoryId?: string;
     productSchemaId?: string;
     customData?: Record<string, any>;
+    images?: string[];
     isActive?: boolean;
   }
 ) {
@@ -70,7 +79,14 @@ export async function updateProduct(
     }
   }
 
-  return productDal.updateProduct(storeId, productId, input);
+  const product = await productDal.updateProduct(storeId, productId, input);
+
+  // INDEX FACETS IF DATA CHANGED
+  if (input.customData || input.productSchemaId) {
+    await indexProductFacets(product.id);
+  }
+
+  return product;
 }
 
 export async function deleteProduct(
@@ -102,10 +118,12 @@ export async function listProducts(
   storeId: string,
   filters?: {
     categoryId?: string;
+    productSchemaId?: string;
     isActive?: boolean;
     search?: string;
     skip?: number;
     take?: number;
+    facets?: Record<string, string[]>;
   }
 ) {
   // Read access - no permission check needed (public API)

@@ -58,17 +58,20 @@ export const getColumns = (schemaFields: any[] = []): ColumnDef<ProductColumn>[]
     ];
 
     // Add dynamic columns from schema
-    const dynamicColumns: ColumnDef<ProductColumn>[] = schemaFields.map(field => ({
-        accessorKey: `customData.${field.key}`,
-        header: field.label,
-        cell: ({ row }) => {
-            const val = row.original?.customData?.[field.key];
-            if (field.type === 'boolean') {
-                return val ? "Yes" : "No";
+    const dynamicColumns: ColumnDef<ProductColumn>[] = schemaFields.map(field => {
+        const key = field.key || field.name;
+        return {
+            accessorKey: `customData.${key}`,
+            header: field.label,
+            cell: ({ row }) => {
+                const val = row.original?.customData?.[key];
+                if (field.type === 'boolean') {
+                    return val ? "Yes" : "No";
+                }
+                return val || "-";
             }
-            return val || "-";
-        }
-    }));
+        };
+    });
 
     // Combine: Default -> Dynamic -> Date -> Actions
     return [

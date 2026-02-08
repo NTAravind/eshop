@@ -4,6 +4,7 @@ import { WhatsAppProvider } from './providers/whatsapp';
 import { EmailProvider } from './providers/email';
 import { WebPushProvider } from './providers/web-push';
 import { MobilePushProvider } from './providers/mobile-push';
+import { InAppNotificationProvider } from './providers/in-app';
 import { NotificationProvider } from './providers/base';
 
 const providers: Record<NotificationChannel, NotificationProvider> = {
@@ -11,6 +12,7 @@ const providers: Record<NotificationChannel, NotificationProvider> = {
     [NotificationChannel.EMAIL]: new EmailProvider(),
     [NotificationChannel.WEB_PUSH]: new WebPushProvider(),
     [NotificationChannel.MOBILE_PUSH]: new MobilePushProvider(),
+    [NotificationChannel.IN_APP]: new InAppNotificationProvider(),
 };
 
 /**

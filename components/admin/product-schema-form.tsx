@@ -85,12 +85,12 @@ export const ProductSchemaForm: React.FC<ProductSchemaFormProps> = ({
             };
 
             if (initialData) {
-                await fetch(`/api/stores/${params.storeId}/product-schemas/${params.schemaId}`, {
+                await fetch(`/api/admin/stores/${params.storeId}/product-schemas/${params.schemaId}`, {
                     method: "PATCH",
                     body: JSON.stringify(formattedData),
                 });
             } else {
-                await fetch(`/api/stores/${params.storeId}/product-schemas`, {
+                await fetch(`/api/admin/stores/${params.storeId}/product-schemas`, {
                     method: "POST",
                     body: JSON.stringify(formattedData),
                 });

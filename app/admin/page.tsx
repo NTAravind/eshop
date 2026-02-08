@@ -43,7 +43,7 @@ export default function TenantAdminDashboard() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/tenant/dashboard');
+            const res = await fetch('/api/admin/tenant/dashboard');
             if (res.status === 401) {
                 window.location.href = '/auth/signin?callbackUrl=/admin';
                 return;

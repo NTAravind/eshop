@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import * as subscriptionDal from '@/dal/subscription.dal';
 import * as usageService from '@/services/usage.service';
+import * as storefrontService from '@/services/storefront.service';
 
 /**
  * Create new store
@@ -66,6 +67,9 @@ export async function createStore(
 
     return newStore;
   });
+
+  // Create default storefront documents
+  await storefrontService.createDefaultDocuments(store.id);
 
   // RECORD STORE CREATION
   await usageService.recordStoreCreation(account.id);

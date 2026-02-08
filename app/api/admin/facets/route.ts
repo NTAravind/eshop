@@ -10,60 +10,15 @@ import { hasWriteScope } from '@/services/apiKey.service';
  * POST /api/facets
  * Create a new facet
  */
+/**
+ * POST /api/facets
+ * Deprecated: Facets are now automatically generated from Product/Variant Schemas.
+ */
 export async function POST(req: NextRequest) {
-  try {
-    const tenant = await resolveTenant();
-
-    // If using API key, check scopes
-    if (tenant.apiKeyId && tenant.scopes) {
-      if (!hasWriteScope(tenant.scopes, 'products')) {
-        return NextResponse.json(
-          { error: 'Missing required scope: products:write' },
-          { status: 403 }
-        );
-      }
-    }
-
-    if (!tenant.userId) {
-      return NextResponse.json(
-        { error: 'User authentication required for this operation' },
-        { status: 403 }
-      );
-    }
-
-    // Permission check
-    await requireStoreRole(tenant.userId, tenant.storeId, 'MANAGER');
-
-    const body = await req.json();
-
-    // Validation
-    if (!body.name || body.name.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Facet name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.code || body.code.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Facet code is required' },
-        { status: 400 }
-      );
-    }
-
-    const facet = await facetDal.createFacet(tenant.storeId, {
-      name: body.name,
-      code: body.code,
-    });
-
-    return NextResponse.json(facet, { status: 201 });
-  } catch (error: any) {
-    console.error('Create facet error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create facet' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
-    );
-  }
+  return NextResponse.json(
+    { error: 'Manual facet creation is deprecated. Facets are generated from Product/Variant Schemas.' },
+    { status: 400 }
+  );
 }
 
 /**

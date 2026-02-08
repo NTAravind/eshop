@@ -35,7 +35,7 @@ export function NotificationSenderClient({ storeId }: { storeId: string }) {
         setLoading(true);
 
         try {
-            const res = await fetch(`/api/stores/${storeId}/notifications/send`, {
+            const res = await fetch(`/api/admin/stores/${storeId}/notifications/send`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

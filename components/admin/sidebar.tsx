@@ -54,6 +54,12 @@ export function AdminSidebar({ storeId, className }: AdminSidebarProps) {
             active: pathname === `/admin/stores/${storeId}/overview`,
         },
         {
+            href: `/admin/stores/${storeId}/builder`,
+            label: "Builder",
+            icon: Palette,
+            active: pathname.includes(`/admin/stores/${storeId}/builder`),
+        },
+        {
             href: `/admin/stores/${storeId}/orders`,
             label: "Orders",
             icon: ShoppingBag,

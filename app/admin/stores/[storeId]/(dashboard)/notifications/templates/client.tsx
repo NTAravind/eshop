@@ -77,7 +77,7 @@ export function TemplatesClient({ storeId }: { storeId: string }) {
 
     const fetchTemplates = async () => {
         try {
-            const res = await fetch(`/api/stores/${storeId}/notifications/templates`);
+            const res = await fetch(`/api/admin/stores/${storeId}/notifications/templates`);
             const data = await res.json();
             if (data.templates) {
                 setTemplates(data.templates);
@@ -93,7 +93,7 @@ export function TemplatesClient({ storeId }: { storeId: string }) {
         if (!confirm("Are you sure you want to delete this template?")) return;
 
         try {
-            const res = await fetch(`/api/stores/${storeId}/notifications/templates/${id}`, {
+            const res = await fetch(`/api/admin/stores/${storeId}/notifications/templates/${id}`, {
                 method: "DELETE",
             });
             if (res.ok) {

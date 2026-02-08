@@ -2,7 +2,7 @@
 import { ProductForm } from "../components/product-form";
 import * as schemaService from "@/services/schema.service";
 import * as categoryService from "@/services/category.service";
-import * as db from "@/lib/prisma";
+import * as productService from "@/services/product.service";
 import { notFound } from "next/navigation";
 
 export default async function ProductPage({
@@ -17,11 +17,7 @@ export default async function ProductPage({
     const [schemas, categories, product] = await Promise.all([
         schemaService.listActiveSchemas(storeId),
         categoryService.listCategories(storeId),
-        isNew ? null : db.default.product.findUnique({
-            where: {
-                id: productId,
-            },
-        })
+        isNew ? null : productService.getProduct(storeId, productId),
     ]);
 
     if (!isNew && !product) {

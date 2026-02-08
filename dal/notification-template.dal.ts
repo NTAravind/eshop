@@ -71,9 +71,8 @@ export async function createTemplate(
             channel: data.channel as NotificationChannel,
             eventType: data.eventType,
             whatsappTemplateName: 'whatsappTemplateName' in data ? data.whatsappTemplateName : null,
-            whatsappLanguageCode: 'whatsappLanguageCode' in data ? data.whatsappLanguageCode : null,
             subject: 'subject' in data ? data.subject : null,
-            content: 'content' in data ? data.content : null,
+            content: 'content' in data ? data.content : '',
             isActive: data.isActive ?? true,
         },
     })

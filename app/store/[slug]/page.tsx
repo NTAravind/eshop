@@ -1,57 +1,58 @@
-import { notFound } from "next/navigation"
-import { getStoreBySlug } from "@/services/store.service"
-import { getLayout } from "@/services/layout.service"
-import { Renderer } from "@/components/builder/Renderer"
-import type { LayoutRoot } from "@/types/builder"
+import { notFound } from 'next/navigation';
+import { getStoreBySlug } from '@/services/store.service';
+import { getPublishedDocument } from '@/services/storefront.service';
+import { StorefrontDocKind } from '@/app/generated/prisma';
+import type { StorefrontNode } from '@/types/storefront-builder';
+import { StorefrontPage } from './_components/StorefrontPage';
 
-interface StorePageProps {
-    params: Promise<{
-        slug: string
-    }>
+interface StoreHomePageProps {
+    params: Promise<{ slug: string }>;
 }
 
-export default async function StorePage({ params }: StorePageProps) {
-    const { slug } = await params
+export default async function StoreHomePage({ params }: StoreHomePageProps) {
+    const { slug } = await params;
 
-    const store = await getStoreBySlug(slug)
+    const store = await getStoreBySlug(slug);
     if (!store) {
-        notFound()
+        notFound();
     }
 
-    // Fetch published layout for HOME page
-    const layoutData = await getLayout(store.id, "HOME", false) // TODO: Switch to true for published only
+    // Get published documents
+    const [layoutDoc, pageDoc] = await Promise.all([
+        getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
+        getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'HOME'),
+    ]);
 
-    if (!layoutData?.tree) {
+    const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
+    const page = pageDoc?.tree as unknown as StorefrontNode;
+
+    // Fallback UI if no published page
+    if (!page) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold">Store Under Construction</h1>
-                    <p className="text-muted-foreground">Please check back later.</p>
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center p-8 max-w-md">
+                    <h1 className="text-3xl font-bold mb-4">{store.name}</h1>
+                    <p className="text-muted-foreground mb-8">
+                        Welcome to our store. We are currently setting up our storefront.
+                    </p>
+                    <div className="p-4 bg-secondary/50 rounded-lg border">
+                        <p className="text-sm font-medium">Store ID: {store.id}</p>
+                    </div>
                 </div>
             </div>
-        )
-    }
-
-    const layoutTree = layoutData.tree as unknown as LayoutRoot["tree"]
-
-    // Runtime context for bindings
-    const runtimeContext = {
-        store: {
-            name: store.name,
-            currency: store.currency,
-        },
-        // Add other contexts like user, cart, etc. as needed
+        );
     }
 
     return (
-        <div className="min-h-screen bg-background">
-            <Renderer
-                node={layoutTree}
-                context={{
-                    mode: "runtime",
-                    runtimeContext
-                }}
-            />
-        </div>
-    )
+        <StorefrontPage
+            store={{
+                id: store.id,
+                name: store.name,
+                slug: store.slug,
+                currency: store.currency || 'USD',
+            }}
+            layout={layout}
+            page={page}
+        />
+    );
 }
