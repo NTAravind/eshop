@@ -1,11 +1,12 @@
 import { notFound, redirect } from 'next/navigation';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
+import { getPublishedDocument, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
 import { StorefrontDocKind } from '@/app/generated/prisma';
 import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../../_components/StorefrontPage';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as orderService from '@/services/order.service';
+import { formatCurrency } from '@/shared/utils';
 
 interface OrderPageProps {
     params: Promise<{ slug: string; orderId: string }>;
@@ -34,10 +35,12 @@ export default async function StoreOrderPage({ params }: OrderPageProps) {
     }
 
     // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'ORDER_CONFIRMATION') // Try specific confirmation page first
             .then(doc => doc || getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'ORDERS')), // Fallback to general orders page
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
@@ -74,12 +77,9 @@ export default async function StoreOrderPage({ params }: OrderPageProps) {
                             </div>
                             <div className="flex justify-between font-bold text-lg mt-4">
                                 <span>Total:</span>
-                                <span>
-                                    {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: store.currency || 'USD',
-                                    }).format(order.total / 100)}
-                                </span>
+                                <p className="font-semibold text-lg">
+                                    {formatCurrency(order.total, store.currency || 'USD')}
+                                </p>
                             </div>
                         </div>
 
@@ -107,6 +107,7 @@ export default async function StoreOrderPage({ params }: OrderPageProps) {
             }}
             layout={layout}
             page={page}
+            settings={settingsMap || undefined}
             user={{
                 id: session.user.id || '',
                 email: session.user.email || '',
@@ -127,6 +128,7 @@ export default async function StoreOrderPage({ params }: OrderPageProps) {
                         variantSnapshot: (line.variantSnapshot as Record<string, unknown>) || {},
                     })),
                 },
+                prefabs,
             }}
         />
     );

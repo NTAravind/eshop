@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as userDal from '@/dal/user.dal';
-import { toErrorResponse } from '@/lib/errors';
+import { toErrorResponse } from '@/shared/utils/errors';
 
 export const dynamic = 'force-dynamic';
 

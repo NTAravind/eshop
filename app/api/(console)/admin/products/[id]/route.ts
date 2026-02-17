@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as productService from '@/services/product.service';
 
 export const dynamic = 'force-dynamic';
@@ -38,10 +38,11 @@ export async function GET(
     }
 
     return NextResponse.json(product);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Get product error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to get product';
     return NextResponse.json(
-      { error: error.message || 'Failed to get product' },
+      { error: message },
       { status: 400 }
     );
   }
@@ -91,11 +92,12 @@ export async function PATCH(
     );
 
     return NextResponse.json(product);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update product error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update product';
     return NextResponse.json(
-      { error: error.message || 'Failed to update product' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('denied') ? 403 : 400 }
     );
   }
 }
@@ -132,11 +134,12 @@ export async function DELETE(
     await productService.deleteProduct(tenant.userId, tenant.storeId, params.id);
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Delete product error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete product';
     return NextResponse.json(
-      { error: error.message || 'Failed to delete product' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('denied') ? 403 : 400 }
     );
   }
 }

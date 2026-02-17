@@ -1,12 +1,13 @@
 import { notFound, redirect } from 'next/navigation';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
-import { getCart } from '@/services/cart/cart.service';
-import { mapCartToContext } from '@/lib/storefront/mappers/cart';
+import { getPublishedDocument, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
+import { getOrCreateCart } from '@/services/cart/cart.service';
+import { mapCartToContext } from '@/modules/storefront/mappers/cart';
 import { StorefrontDocKind } from '@/app/generated/prisma';
 import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../_components/StorefrontPage';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
+import { cookies } from 'next/headers';
 
 interface CheckoutPageProps {
     params: Promise<{ slug: string }>;
@@ -26,8 +27,15 @@ export default async function StoreCheckoutPage({ params }: CheckoutPageProps) {
         redirect(`/store/${slug}/login?redirect=/store/${slug}/checkout`);
     }
 
-    // Load cart for the user
-    const cartData = await getCart(store.id, { userId: session.user.id });
+    // Get session ID for cart merge
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get('cart_session')?.value;
+
+    // Load or merge cart for the user (merge happens if sessionId also provided)
+    const cartData = await getOrCreateCart(store.id, {
+        userId: session.user.id,
+        sessionId: sessionId // Include session ID for cart merge on login
+    });
 
     // Redirect if cart is empty
     if (!cartData || cartData.items.length === 0) {
@@ -35,12 +43,14 @@ export default async function StoreCheckoutPage({ params }: CheckoutPageProps) {
     }
 
     // Map cart to context
-    const cart = mapCartToContext(cartData);
+    const cart = mapCartToContext(cartData, store.currency || 'USD');
 
     // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'CHECKOUT'),
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
@@ -93,6 +103,8 @@ export default async function StoreCheckoutPage({ params }: CheckoutPageProps) {
                 name: session.user.name || undefined,
             } : null}
             cart={cart}
+            settings={settingsMap || undefined}
+            pageData={{ prefabs }}
         />
     );
 }

@@ -6,7 +6,8 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { initializeRegistry } from '@/lib/storefront/registry/init';
+import { initializeRegistry } from '@/modules/storefront/registry/init';
+import { generateThemeCssString } from '@/modules/storefront/theme';
 
 interface StorefrontLayoutClientProps {
     children: React.ReactNode;
@@ -29,30 +30,10 @@ export function StorefrontLayoutClient({
         initializeRegistry();
     }, []);
 
-    // Build CSS custom properties string
+    // Build scoped CSS custom properties string
     const cssVarsStyle = useMemo(() => {
-        const cssLines: string[] = [];
-
-        Object.entries(themeVars).forEach(([key, value]) => {
-            if (!value) return;
-
-            // Convert camelCase to kebab-case
-            const cssKey = key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
-            const varName = `--${cssKey}`;
-
-            // Handle color values provided as HSL components (common in shadcn/ui defaults)
-            // Regex checks for format like "222.2 47.4% 11.2%" or "0 0% 100%"
-            const isHslComponents = /^\d+(\.\d+)?\s+\d+(\.\d+)?%\s+\d+(\.\d+)?%$/.test(value);
-
-            let cssValue = value;
-            if (isHslComponents) {
-                cssValue = `hsl(${value})`;
-            }
-
-            cssLines.push(`${varName}: ${cssValue};`);
-        });
-
-        return `:root { ${cssLines.join(' ')} }`;
+        // Scope to .storefront-container instead of :root
+        return generateThemeCssString(themeVars, '.storefront-container');
     }, [themeVars]);
 
     return (

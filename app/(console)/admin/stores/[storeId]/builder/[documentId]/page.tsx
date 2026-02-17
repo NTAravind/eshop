@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { EditorLayout } from '@/components/builder';
 import * as storefrontService from '@/services/storefront.service';
 import * as storeService from '@/services/store.service';
@@ -6,7 +6,8 @@ import * as productService from '@/services/product.service';
 import { saveDocument, publishDocument, saveTheme, publishTheme, generateStorefront } from '../actions';
 import type { StorefrontNode, ThemeVars } from '@/types/storefront-builder';
 import { StorefrontDocKind, StorefrontDocStatus } from '@/app/generated/prisma';
-import { mapProductsToContext } from '@/lib/storefront/mappers/product';
+import { mapProductsToContext } from '@/modules/storefront/mappers/product';
+import { productCardPrefab, navbarPrefab, cartSidebarPrefab, orderCardPrefab } from '@/modules/storefront/defaults/prefabs';
 
 export default async function BuilderEditorPage({
     params,
@@ -15,11 +16,12 @@ export default async function BuilderEditorPage({
 }) {
     const { storeId, documentId } = await params;
 
-    const [store, doc, theme, productsResult] = await Promise.all([
+    const [store, doc, theme, productsResult, prefabDocs] = await Promise.all([
         storeService.getStoreWithAccount(storeId),
         storefrontService.getDocumentById(documentId),
         storefrontService.getTheme(storeId, StorefrontDocStatus.DRAFT),
         productService.listProducts(storeId, { take: 20 }),
+        storefrontService.listDocuments(storeId, StorefrontDocKind.PREFAB, StorefrontDocStatus.DRAFT),
     ]);
 
     if (!store) {
@@ -33,6 +35,17 @@ export default async function BuilderEditorPage({
     // Map products to preview context (type assertion due to DAL field name differences)
     const previewProducts = mapProductsToContext(productsResult.products as any);
     const defaultPreviewProduct = previewProducts[0];
+    const prefabs = prefabDocs.reduce((acc, prefab) => {
+        acc[prefab.key] = prefab.tree as unknown as StorefrontNode;
+        return acc;
+    }, {} as Record<string, StorefrontNode>);
+    const defaultPrefabs: Record<string, StorefrontNode> = {
+        ProductCard: productCardPrefab,
+        Navbar: navbarPrefab,
+        CartSidebar: cartSidebarPrefab,
+        OrderCard: orderCardPrefab,
+    };
+    const previewPrefabs = { ...defaultPrefabs, ...prefabs };
 
     // Server actions wrappers
     async function handleSave(tree: StorefrontNode, theme: ThemeVars) {
@@ -83,6 +96,7 @@ export default async function BuilderEditorPage({
             previewData={{
                 products: previewProducts,
                 defaultProduct: defaultPreviewProduct,
+                prefabs: previewPrefabs,
             }}
         />
     );

@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { CustomersClient } from "./client";
 import { CustomerColumn } from "./columns";
 import * as customerDal from "@/dal/customer.dal";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';

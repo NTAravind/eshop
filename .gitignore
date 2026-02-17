@@ -45,11 +45,10 @@ next-env.d.ts
 # Local Debug & Admin Scripts
 scripts/
 examples/
-docs/
-
+error/
 # IDEs
 .vscode
 .idea
-
+.agent/
 # Documentation
 # *.md # Commented out to allow README and docs 

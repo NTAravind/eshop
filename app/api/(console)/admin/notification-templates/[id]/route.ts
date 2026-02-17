@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { hasStoreAccess } from '@/lib/rbac-helpers'
+import { auth } from '@/server/auth'
+import { hasStoreAccess } from '@/server/rbac/rbac-helpers'
 import { getTemplateById, updateTemplate, deleteTemplate } from '@/dal/notification-template.dal'
 import { validateTemplate } from '@/services/notification-template.service'
-import type { UpdateNotificationTemplateDto } from '@/types/notification-template.types'
+import type { UpdateNotificationTemplateDto } from '@/shared/types/notification-template.types'
 
 /**
  * GET /api/admin/notification-templates/[id]
@@ -32,12 +32,13 @@ export async function GET(
         }
 
         return NextResponse.json(template)
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error fetching notification template:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
             {
                 error: 'Failed to fetch notification template',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )
@@ -87,12 +88,13 @@ export async function PUT(
             ...updatedTemplate,
             validation: validation.warnings ? { warnings: validation.warnings } : undefined,
         })
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error updating notification template:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
             {
                 error: 'Failed to update notification template',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )
@@ -130,12 +132,13 @@ export async function DELETE(
         await deleteTemplate(id)
 
         return NextResponse.json({ success: true, message: 'Template deleted successfully' })
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error deleting notification template:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
             {
                 error: 'Failed to delete notification template',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )

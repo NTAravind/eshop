@@ -1,21 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveStorefront } from '@/lib/tenant/resolveStorefront';
 import * as cartService from '@/services/cart/cart.service';
+import { getCartIdentity } from '@/services/cart/cart-session';
+import { getStoreWithAccount } from '@/services/store.service';
+import { mapCartToContext } from '@/modules/storefront/mappers/cart';
 
 export const dynamic = 'force-dynamic';
 
+function resolveStoreId(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    return searchParams.get('storeId') || req.headers.get('x-store-id') || undefined;
+}
+
 export async function GET(req: NextRequest) {
     try {
-        const { storeId, userId, sessionId } = await resolveStorefront();
+        const storeId = resolveStoreId(req);
+        if (!storeId) {
+            return NextResponse.json({ error: 'storeId is required' }, { status: 400 });
+        }
+
+        const { userId, sessionId } = await getCartIdentity();
         const { searchParams } = new URL(req.url);
         const cartId = searchParams.get('cartId') || undefined;
-
-        // Verify context
-        if (!userId && !sessionId && !cartId) {
-            // If no identification, return empty or create new session? 
-            // For GET, we usually expect to fetch an EXISTING cart.
-            return NextResponse.json({ message: 'No cart identification provided' }, { status: 400 });
-        }
 
         const cart = await cartService.getCart(storeId, { userId, sessionId, cartId });
 
@@ -23,7 +28,13 @@ export async function GET(req: NextRequest) {
             return NextResponse.json(null);
         }
 
-        return NextResponse.json(cart);
+        const store = await getStoreWithAccount(storeId);
+        if (!store) {
+            return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+        }
+        const cartContext = mapCartToContext(cart, store.currency || 'USD');
+
+        return NextResponse.json(cartContext);
     } catch (error: any) {
         console.error('Get Cart Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,12 +43,23 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { storeId, userId, sessionId } = await resolveStorefront();
+        const storeId = resolveStoreId(req);
+        if (!storeId) {
+            return NextResponse.json({ error: 'storeId is required' }, { status: 400 });
+        }
+
+        const { userId, sessionId } = await getCartIdentity();
 
         // Create a new cart explicitly (or get existing)
         const cart = await cartService.getOrCreateCart(storeId, { userId, sessionId });
 
-        return NextResponse.json(cart, { status: 201 });
+        const store = await getStoreWithAccount(storeId);
+        if (!store) {
+            return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+        }
+        const cartContext = mapCartToContext(cart, store.currency || 'USD');
+
+        return NextResponse.json(cartContext, { status: 201 });
     } catch (error: any) {
         console.error('Create Cart Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

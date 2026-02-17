@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as storeDal from '@/dal/store.dal';
 import * as storeStaffDal from '@/dal/storestaff.dal';
 
@@ -33,10 +33,10 @@ export async function GET(
         const overview = await storeDal.getStoreOverview(params.storeId);
 
         return NextResponse.json(overview);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Store overview error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch store overview' },
+            { error: error instanceof Error ? error.message : 'Failed to fetch store overview' },
             { status: 500 }
         );
     }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as subscriptionDal from '@/dal/subscription.dal';
 
 export const dynamic = 'force-dynamic';
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 
 /**
  * GET /api/platform/invoices

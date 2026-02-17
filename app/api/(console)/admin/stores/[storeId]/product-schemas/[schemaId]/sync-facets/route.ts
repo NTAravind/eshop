@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import { getUserStoreRole } from '@/dal/store.dal';
 import { getSchemaById } from '@/services/schema.service';
 import { syncFacetsFromSchema } from '@/services/facet-sync.service';
+
+
 
 export async function POST(
     req: NextRequest,
@@ -30,13 +32,13 @@ export async function POST(
             return NextResponse.json({ error: 'Schema does not belong to this store' }, { status: 403 });
         }
 
-        await syncFacetsFromSchema(storeId, schemaId, 'PRODUCT', schema.fields as any);
+        await syncFacetsFromSchema(storeId, schemaId, 'PRODUCT', schema.fields as unknown as Parameters<typeof syncFacetsFromSchema>[3]);
 
         return NextResponse.json({ success: true, message: 'Facets synced successfully' });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Sync facets error:', error);
         return NextResponse.json(
-            { error: error.message || 'Internal server error' },
+            { error: error instanceof Error ? error.message : 'Internal server error' },
             { status: 500 }
         );
     }

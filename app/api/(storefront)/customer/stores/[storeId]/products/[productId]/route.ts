@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as productService from '@/services/product.service';
 import * as variantService from '@/services/variant.service';
 
@@ -23,5 +23,4 @@ export async function GET(
         return new NextResponse("Internal error", { status: 500 });
     }
 }
-
 

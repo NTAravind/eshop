@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/shared/utils";
 import { CellAction } from "./cell-action";
 
 export type ProductColumn = {

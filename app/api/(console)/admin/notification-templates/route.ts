@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { auth } from '@/server/auth'
 import { getStoreBySlug } from '@/dal/store.dal'
-import { hasStoreAccess } from '@/lib/rbac-helpers'
+import { hasStoreAccess } from '@/server/rbac/rbac-helpers'
 import { getTemplatesByStore, createTemplate } from '@/dal/notification-template.dal'
 import { validateTemplate } from '@/services/notification-template.service'
-import type { CreateNotificationTemplateDto } from '@/types/notification-template.types'
+import type { CreateNotificationTemplateDto } from '@/shared/types/notification-template.types'
 
 /**
  * GET /api/admin/notification-templates
@@ -41,12 +41,13 @@ export async function GET(request: NextRequest) {
         const templates = await getTemplatesByStore(store.id)
 
         return NextResponse.json(templates)
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error fetching notification templates:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
             {
                 error: 'Failed to fetch notification templates',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )
@@ -111,13 +112,14 @@ export async function POST(request: NextRequest) {
             },
             { status: 201 }
         )
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error creating notification template:', error)
+        const message = error instanceof Error ? error.message : 'Unknown error';
 
         // Handle duplicate template error
-        if (error.message?.includes('already exists')) {
+        if (message?.includes('already exists')) {
             return NextResponse.json(
-                { error: error.message },
+                { error: message },
                 { status: 409 }
             )
         }
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
             {
                 error: 'Failed to create notification template',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )

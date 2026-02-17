@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as orderService from '@/services/order.service';
 import { OrderDetailsClient } from './client';
 

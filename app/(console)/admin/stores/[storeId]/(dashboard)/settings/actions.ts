@@ -2,7 +2,7 @@
 
 import { updateStore } from '@/dal/store.dal';
 import { revalidatePath } from 'next/cache';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 
 export type UpdateStoreState = {
     message?: string;

@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 import { StoreRole } from '@/app/generated/prisma';
 
 /**

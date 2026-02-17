@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as paymentConfigService from '@/services/paymentConfig.service';
 
 export const dynamic = 'force-dynamic';
@@ -42,11 +42,12 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(config, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create payment config error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create payment configuration';
     return NextResponse.json(
-      { error: error.message || 'Failed to create payment configuration' },
-      { status: error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') ? 403 : 400 }
     );
   }
 }
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
  * GET /api/payment-configs
  * List all payment configurations for store
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const tenant = await resolveTenant();
 
@@ -80,11 +81,12 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ configs });
-  } catch (error: any) {
+  } catch (error) {
     console.error('List payment configs error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list payment configurations';
     return NextResponse.json(
-      { error: error.message || 'Failed to list payment configurations' },
-      { status: error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') ? 403 : 400 }
     );
   }
 }

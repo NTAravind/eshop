@@ -1,8 +1,8 @@
 import { AdminShell } from "@/components/admin/admin-shell";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 import * as storeService from '@/services/store.service';
-import { getRbacContext } from '@/lib/rbac';
+import { getRbacContext } from '@/server/rbac/rbac';
 import { AuthProvider } from '@/components/auth/auth-provider';
 
 

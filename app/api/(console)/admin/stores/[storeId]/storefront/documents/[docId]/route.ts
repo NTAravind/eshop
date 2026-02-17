@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { resolveTenant, authorizeStore } from '@/lib/auth-helpers';
+import { resolveTenant, authorizeStore } from '@/server/auth/auth-helpers';
 import * as storefrontService from '@/services/storefront.service';
 
 // Schema for updating a document

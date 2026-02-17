@@ -1,5 +1,5 @@
-import { auth } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { auth } from '@/server/auth';
+import prisma from '@/server/db/prisma';
 
 /**
  * Requires the current user to be a superadmin.

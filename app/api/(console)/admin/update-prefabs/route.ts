@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 import { StorefrontDocKind, StorefrontDocStatus } from '@/app/generated/prisma';
-import { productCardPrefab, navbarPrefab, cartSidebarPrefab, orderCardPrefab } from '@/lib/storefront/defaults/prefabs';
+import { productCardPrefab, navbarPrefab, cartSidebarPrefab, orderCardPrefab } from '@/modules/storefront/defaults/prefabs';
 
 export async function POST() {
     try {

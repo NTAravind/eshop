@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth/getSession';
-import { requireStoreRole } from '@/lib/auth/requireStore';
+import prisma from '@/server/db/prisma';
+import { getSessionUser } from '@/server/auth/getSession';
+import { requireStoreRole } from '@/server/auth/requireStore';
 
 export async function GET(
     request: Request,
@@ -20,8 +20,9 @@ export async function GET(
         });
 
         return NextResponse.json({ templates });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
@@ -66,7 +67,8 @@ export async function POST(
         });
 
         return NextResponse.json({ template });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

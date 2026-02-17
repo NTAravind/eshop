@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant, authorizeStore } from '@/lib/auth-helpers';
+import { resolveTenant, authorizeStore } from '@/server/auth/auth-helpers';
 import * as storefrontService from '@/services/storefront.service';
 
 /**

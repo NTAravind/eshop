@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { OrdersClient } from "./client";
 import { OrderColumn } from "./columns";
 import * as orderService from "@/services/order.service";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';

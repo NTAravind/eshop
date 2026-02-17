@@ -1,5 +1,5 @@
-import { auth } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { auth } from '@/server/auth';
+import prisma from '@/server/db/prisma';
 import { AuthContextValue, AuthScope } from '@/types/auth-types';
 
 interface RbacOptions {
@@ -40,7 +40,7 @@ export async function getRbacContext(options: RbacOptions = {}): Promise<AuthCon
     }
 
     let activeTenantId = options.accountId;
-    let activeStoreId = options.storeId;
+    const activeStoreId = options.storeId;
 
     // 3. Store Context
     if (activeStoreId) {

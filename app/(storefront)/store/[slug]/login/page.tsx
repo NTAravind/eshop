@@ -1,10 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
+import { getPublishedDocument, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
 import { StorefrontDocKind } from '@/app/generated/prisma';
 import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../_components/StorefrontPage';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 
 interface LoginPageProps {
     params: Promise<{ slug: string }>;
@@ -27,9 +27,11 @@ export default async function StoreLoginPage({ params, searchParams }: LoginPage
     }
 
     // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'LOGIN'),
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
@@ -86,6 +88,8 @@ export default async function StoreLoginPage({ params, searchParams }: LoginPage
             }}
             layout={layout}
             page={page}
+            settings={settingsMap || undefined}
+            pageData={{ prefabs }}
         />
     );
 }

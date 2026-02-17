@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as productService from '@/services/product.service';
 
 export const dynamic = 'force-dynamic';
@@ -44,11 +44,12 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create product error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create product';
     return NextResponse.json(
-      { error: error.message || 'Failed to create product' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('denied') ? 403 : 400 }
     );
   }
 }
@@ -86,10 +87,11 @@ export async function GET(req: NextRequest) {
     const result = await productService.listProducts(tenant.storeId, filters);
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error) {
     console.error('List products error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list products';
     return NextResponse.json(
-      { error: error.message || 'Failed to list products' },
+      { error: message },
       { status: 400 }
     );
   }

@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getStoreBySlug } from '@/services/store.service';
 import { getPublishedTheme } from '@/services/storefront.service';
-import { defaultTheme } from '@/lib/storefront/defaults';
+import { defaultTheme } from '@/modules/storefront/defaults';
 import { StorefrontLayoutClient } from './_components/StorefrontLayoutClient';
 
 interface StoreLayoutProps {

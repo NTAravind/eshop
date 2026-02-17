@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/shared/utils";
 
 export type CustomerColumn = {
     id: string;

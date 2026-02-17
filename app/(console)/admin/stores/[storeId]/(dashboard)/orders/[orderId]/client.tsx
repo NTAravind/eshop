@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/shared/utils';
 // import { completeOrderAction } from '../actions/complete-order.action';
 import { toast } from 'sonner';
 import { CheckCircle, Package, User, MapPin } from 'lucide-react';

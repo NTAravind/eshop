@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as categoryService from '@/services/category.service';
 
 export async function POST(

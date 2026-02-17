@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveStorefront } from '@/lib/tenant/resolveStorefront';
+import { resolveStorefront } from '@/server/tenant/resolveStorefront';
 import * as facetDal from '@/dal/facet.dal';
 
 export const dynamic = 'force-dynamic';

@@ -1,5 +1,5 @@
 
-
+import { getStoreWithAccount } from "@/services/store.service";
 import { getVariant } from "@/services/variant.service";
 import { getProduct } from "@/services/product.service";
 import * as schemaService from "@/services/schema.service";
@@ -13,9 +13,10 @@ export default async function EditVariantPage({
 }) {
     const { storeId, productId, variantId } = await params;
 
-    const [product, variant] = await Promise.all([
+    const [product, variant, store] = await Promise.all([
         getProduct(storeId, productId),
-        getVariant(storeId, variantId)
+        getVariant(storeId, variantId),
+        getStoreWithAccount(storeId)
     ]);
 
     if (!variant || !product) {
@@ -31,7 +32,12 @@ export default async function EditVariantPage({
     return (
         <div className="flex-col">
             <div className="flex-1 space-y-4 p-8 pt-6">
-                <VariantForm initialData={variant} productId={productId} productSchema={productSchema} />
+                <VariantForm
+                    initialData={variant}
+                    productId={productId}
+                    productSchema={productSchema}
+                    currency={store?.currency || 'USD'}
+                />
             </div>
         </div>
     );

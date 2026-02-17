@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as storeStaffService from '@/services/storestaff.service';
 
 export const dynamic = 'force-dynamic';
@@ -53,11 +53,12 @@ export async function POST(req: NextRequest) {
         );
 
         return NextResponse.json(invitation, { status: 201 });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Invite staff error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to invite staff member';
         return NextResponse.json(
-            { error: error.message || 'Failed to invite staff member' },
-            { status: error.message?.includes('configure') ? 400 : 500 } // Config error is 400
+            { error: message },
+            { status: message?.includes('configure') ? 400 : 500 }
         );
     }
 }
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
  * GET /api/admin/staff/invitations
  * List all pending invitations (requires MANAGER role)
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         const tenant = await resolveTenant();
 
@@ -90,11 +91,12 @@ export async function GET(req: NextRequest) {
         );
 
         return NextResponse.json({ invitations });
-    } catch (error: any) {
+    } catch (error) {
         console.error('List invitations error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to list invitations';
         return NextResponse.json(
-            { error: error.message || 'Failed to list invitations' },
-            { status: error.message?.includes('denied') ? 403 : 400 }
+            { error: message },
+            { status: message?.includes('denied') ? 403 : 400 }
         );
     }
 }
@@ -138,11 +140,12 @@ export async function DELETE(req: NextRequest) {
         );
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Remove invitation error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to remove invitation';
         return NextResponse.json(
-            { error: error.message || 'Failed to remove invitation' },
-            { status: error.message?.includes('Only') ? 403 : 400 }
+            { error: message },
+            { status: message?.includes('Only') ? 403 : 400 }
         );
     }
 }

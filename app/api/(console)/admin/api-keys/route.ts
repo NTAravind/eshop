@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as apiKeyService from '@/services/apiKey.service';
 
 export const dynamic = 'force-dynamic';
@@ -39,11 +39,12 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(apiKey, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create API key error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create API key';
     return NextResponse.json(
-      { error: error.message || 'Failed to create API key' },
-      { status: error.message?.includes('denied') || error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') || message.includes('Only') ? 403 : 400 }
     );
   }
 }
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
  * GET /api/api-keys
  * List all API keys for the store (OWNER only)
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const tenant = await resolveTenant();
 
@@ -74,11 +75,12 @@ export async function GET(req: NextRequest) {
     const apiKeys = await apiKeyService.listKeys(tenant.userId, tenant.storeId);
 
     return NextResponse.json({ apiKeys });
-  } catch (error: any) {
+  } catch (error) {
     console.error('List API keys error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list API keys';
     return NextResponse.json(
-      { error: error.message || 'Failed to list API keys' },
-      { status: error.message?.includes('denied') || error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') || message.includes('Only') ? 403 : 400 }
     );
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import * as variantService from "@/services/variant.service";
 
 export const dynamic = 'force-dynamic';

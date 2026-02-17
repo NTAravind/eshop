@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as customerDal from '@/dal/customer.dal';
 import * as storeStaffDal from '@/dal/storestaff.dal';
 
@@ -44,10 +44,11 @@ export async function GET(req: NextRequest) {
         const result = await customerDal.listStoreCustomers(storeId, filters);
 
         return NextResponse.json(result);
-    } catch (error: any) {
+    } catch (error) {
         console.error('List customers error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to list customers';
         return NextResponse.json(
-            { error: error.message || 'Failed to list customers' },
+            { error: message },
             { status: 500 }
         );
     }

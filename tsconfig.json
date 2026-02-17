@@ -19,7 +19,24 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/components/ui/*": ["./shared/components/ui/*"],
+      "@/components/modals/*": ["./shared/components/modals/*"],
+      "@/components/providers": ["./shared/components/providers"],
+      "@/components/builder": ["./modules/builder/components/index"],
+      "@/components/builder/*": ["./modules/builder/components/*"],
+      "@/components/admin/*": ["./modules/admin/components/*"],
+      "@/components/superadmin/*": ["./modules/superadmin/components/*"],
+      "@/components/auth/*": ["./modules/auth/components/*"],
+      "@/components/*": ["./shared/components/*"],
+      "@/modules/*": ["./modules/*"],
+      "@/server/*": ["./server/*"],
+      "@/shared/*": ["./shared/*"],
+      "@/hooks/*": ["./shared/hooks/*"],
+      "@/types/*": ["./shared/types/*"],
+      "@/middleware/*": ["./server/middleware/*"],
+      "@/dal/*": ["./server/dal/*"],
+      "@/services/*": ["./server/services/*"]
     }
   },
   "include": [

@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/ui/data-table';
 import { CreatePlanDialog, UpdatePlanDialog } from '@/components/superadmin/plans-dialogs';
-import { deletePlanAction } from '@/app/superadmin/actions/superadmin.actions';
+import { deletePlanAction } from '@/app/(console)/superadmin/actions/superadmin.actions';
 import {
     BarChart,
     Bar,

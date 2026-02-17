@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { redirect } from "next/navigation";
 
 import * as schemaService from "@/services/schema.service";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { ProductSchemasClient } from "./client";
 import { SchemaColumn } from "./client";
 

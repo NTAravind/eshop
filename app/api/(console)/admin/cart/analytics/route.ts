@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as cartService from '@/services/cart/cart.service';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,9 @@ export async function GET(req: NextRequest) {
         const analytics = await cartService.getAnalytics(tenant.storeId, start, end);
 
         return NextResponse.json(analytics);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Get Cart Analytics Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

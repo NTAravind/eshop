@@ -1,4 +1,4 @@
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 import * as paymentDal from "@/dal/payment.dal";
 import * as paymentConfigDal from "@/dal/paymentConfig.dal";

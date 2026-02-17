@@ -2,6 +2,7 @@
 
 import { listVariants } from "@/services/variant.service";
 import { getProduct } from "@/services/product.service";
+import { getStoreWithAccount } from "@/services/store.service";
 import * as schemaService from "@/services/schema.service";
 import { Heading } from "@/components/ui/heading";
 import { Separator } from "@/components/ui/separator";
@@ -18,7 +19,11 @@ export default async function VariantsPage({
 }) {
     const { storeId, productId } = await params;
 
-    const product = await getProduct(storeId, productId);
+    const [product, variants, store] = await Promise.all([
+        getProduct(storeId, productId),
+        listVariants(storeId, productId),
+        getStoreWithAccount(storeId)
+    ]);
 
     if (!product) {
         notFound();
@@ -29,8 +34,6 @@ export default async function VariantsPage({
     if (product.productSchemaId) {
         productSchema = await schemaService.getSchemaById(product.productSchemaId);
     }
-
-    const variants = await listVariants(storeId, productId);
 
     // Transform variants to handle customData type (JsonValue can be null)
     const transformedVariants = variants.map(variant => ({
@@ -54,7 +57,11 @@ export default async function VariantsPage({
                     </Link>
                 </div>
                 <Separator />
-                <VariantList variants={transformedVariants} productId={productId} />
+                <VariantList
+                    variants={transformedVariants}
+                    productId={productId}
+                    currency={store?.currency || 'USD'}
+                />
             </div>
         </div>
     );

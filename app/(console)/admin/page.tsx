@@ -10,7 +10,7 @@ import { InviteStoreAdminDialog } from '@/components/admin/invite-store-with-rol
 import { EmailConfigDialog } from '@/components/admin/email-config-dialog';
 import { AdminShell } from '@/components/admin/admin-shell';
 import { Loader2 } from 'lucide-react';
-import { Store } from '../generated/prisma';
+import { formatCurrency } from '@/shared/utils';
 
 interface DashboardData {
     account: {
@@ -45,7 +45,7 @@ export default function TenantAdminDashboard() {
         try {
             const res = await fetch('/api/admin/tenant/dashboard');
             if (res.status === 401) {
-                window.location.href = '/auth/signin?callbackUrl=/admin';
+                window.location.href = '/login?callbackUrl=/admin';
                 return;
             }
             if (!res.ok) {
@@ -141,11 +141,10 @@ export default function TenantAdminDashboard() {
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-                                <span className="text-lg font-bold">₹</span>
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold">
-                                    {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(stats.revenue)}
+                                    {formatCurrency(stats.revenue, 'INR')}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     Across all stores

@@ -24,7 +24,7 @@ import { MoreHorizontal, Search, Copy, Check, Users, Building2, AlertTriangle, C
 import { PlanType, SubscriptionStatus } from '@/app/generated/prisma';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { suspendAccountAction, reactivateAccountAction } from '@/app/superadmin/actions/superadmin.actions';
+import { suspendAccountAction, reactivateAccountAction } from '@/app/(console)/superadmin/actions/superadmin.actions';
 import { DataTable } from '@/components/ui/data-table';
 import { KPICard } from '@/components/superadmin/kpi-card';
 import { AssignSubscriptionDialog, CreateStoreDialog } from '@/components/superadmin/quick-actions';

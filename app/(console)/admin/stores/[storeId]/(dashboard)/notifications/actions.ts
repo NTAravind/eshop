@@ -1,8 +1,8 @@
 'use server';
 
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 import { notFound } from 'next/navigation';
-import { requireStoreRole } from '@/lib/auth/requireStore';
+import { requireStoreRole } from '@/server/auth/requireStore';
 import { NotificationChannel } from '@/app/generated/prisma';
 import { revalidatePath } from 'next/cache';
 

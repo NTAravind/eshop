@@ -1,5 +1,7 @@
 "use client";
 
+import { Product, Image, ProductSchema, Category } from "@/app/generated/prisma";
+
 import * as z from "zod";
 import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +28,6 @@ import { Heading } from "@/components/ui/heading";
 import { AlertModal } from "@/components/modals/alert-modal";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const formSchema = z.object({
@@ -35,15 +36,15 @@ const formSchema = z.object({
     categoryId: z.string().optional(),
     productSchemaId: z.string().optional(),
     isActive: z.boolean().default(true),
-    customData: z.any().optional(),
+    customData: z.record(z.string(), z.unknown()).optional(),
 });
 
 type ProductFormValues = z.infer<typeof formSchema>;
 
 interface ProductFormProps {
-    initialData: any | null;
-    schemas: any[];
-    categories: any[];
+    initialData: (Product & { images: Image[] }) | null;
+    schemas: ProductSchema[];
+    categories: Category[];
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({
@@ -57,11 +58,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [jsonMode, setJsonMode] = useState(false);
-    const [imageUrls, setImageUrls] = useState<string[]>(
-        (initialData?.images?.map((img: any) => img.url) as string[]) ||
-        (initialData?.customData?.images as string[]) ||
-        []
-    );
 
     // Find active schema based on selection or initial data
     const [selectedSchemaId, setSelectedSchemaId] = useState<string | undefined>(
@@ -73,13 +69,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const toastMessage = initialData ? "Product updated." : "Product created.";
     const action = initialData ? "Save changes" : "Create";
 
-    const defaultValues = initialData ? {
+    const defaultValues: ProductFormValues = initialData ? {
         name: initialData.name,
         description: initialData.description || "",
         categoryId: initialData.categoryId || undefined,
         productSchemaId: initialData.productSchemaId || undefined,
         isActive: initialData.isActive,
-        customData: initialData.customData || {},
+        customData: (initialData.customData as Record<string, unknown>) || {},
     } : {
         name: "",
         description: "",
@@ -90,11 +86,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     };
 
     const form = useForm<ProductFormValues>({
+         
         resolver: zodResolver(formSchema) as any,
         defaultValues,
     });
 
     const activeSchema = schemas.find(s => s.id === selectedSchemaId);
+     
     const schemaFields = (activeSchema?.fields as any[]) || [];
 
     // Watch for schema changes to update state if connected
@@ -114,10 +112,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
             const submitData = {
                 ...data,
-                images: imageUrls
-                    .filter((url) => typeof url === 'string')
-                    .map((url) => url.trim())
-                    .filter((url) => url !== ''),
             };
 
             if (initialData) {
@@ -137,13 +131,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 // Redirect to variants page for new products
                 router.refresh();
                 router.push(`/admin/stores/${params.storeId}/products/${product.id}/variants`);
-                toast.success("Product created. Now add variants.");
+                toast.success("Product created. Now add variants and images.");
                 return;
             }
             router.refresh();
             router.push(`/admin/stores/${params.storeId}/products`);
             toast.success(toastMessage);
-        } catch (error) {
+        } catch {
             toast.error("Something went wrong.");
         } finally {
             setLoading(false);
@@ -159,7 +153,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             router.refresh();
             router.push(`/admin/stores/${params.storeId}/products`);
             toast.success("Product deleted.");
-        } catch (error) {
+        } catch {
             toast.error("Make sure you removed all variants first.");
         } finally {
             setLoading(false);
@@ -305,99 +299,21 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                         />
                     </div>
 
-                    {/* Product Images Section */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-lg font-medium">Product Images</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Add image URLs for this product
-                                </p>
+                    {/* Product Images Note */}
+                    <div className="rounded-md bg-blue-50 p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                <ImageIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setImageUrls([...imageUrls, ""])}
-                                disabled={loading}
-                            >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Add Image
-                            </Button>
+                            <div className="ml-3">
+                                <h3 className="text-sm font-medium text-blue-800">Images are now managed at the Variant level</h3>
+                                <div className="mt-2 text-sm text-blue-700">
+                                    <p>
+                                        To add images, please save this product and then add images to its variants.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
-
-                        {imageUrls.length > 0 && (
-                            <div className="space-y-4">
-                                {imageUrls.map((url, index) => (
-                                    <div key={index} className="flex items-start gap-4">
-                                        <div className="flex-1 space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <Input
-                                                    placeholder="https://example.com/image.jpg"
-                                                    value={url}
-                                                    onChange={(e) => {
-                                                        const newUrls = [...imageUrls];
-                                                        newUrls[index] = e.target.value;
-                                                        setImageUrls(newUrls);
-                                                    }}
-                                                    disabled={loading}
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => {
-                                                        const newUrls = imageUrls.filter((_, i) => i !== index);
-                                                        setImageUrls(newUrls);
-                                                    }}
-                                                    disabled={loading}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            {url && (
-                                                <div className="relative w-full h-48 border rounded-md overflow-hidden bg-muted">
-                                                    <img
-                                                        src={url}
-                                                        alt={`Product image ${index + 1}`}
-                                                        className="w-full h-full object-contain"
-                                                        onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            target.style.display = 'none';
-                                                            const parent = target.parentElement;
-                                                            if (parent && !parent.querySelector('.error-message')) {
-                                                                const errorDiv = document.createElement('div');
-                                                                errorDiv.className = 'error-message flex items-center justify-center h-full text-muted-foreground';
-                                                                errorDiv.innerHTML = '<ImageIcon className="h-12 w-12" /><span className="ml-2">Failed to load image</span>';
-                                                                parent.appendChild(errorDiv);
-                                                            }
-                                                        }}
-                                                        onLoad={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            target.style.display = 'block';
-                                                            const parent = target.parentElement;
-                                                            const errorDiv = parent?.querySelector('.error-message');
-                                                            if (errorDiv) {
-                                                                errorDiv.remove();
-                                                            }
-                                                        }}
-                                                    />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {imageUrls.length === 0 && (
-                            <div className="text-center py-10 border-2 border-dashed rounded-lg">
-                                <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-                                <p className="mt-2 text-sm text-muted-foreground">
-                                    No images yet. Click "Add Image" to get started.
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     <FormField
@@ -443,7 +359,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                                                 try {
                                                                     const parsed = JSON.parse(e.target.value);
                                                                     field.onChange(parsed);
-                                                                } catch (err) {
+                                                                } catch {
                                                                     // Ignore parse errors while typing
                                                                 }
                                                             }}
@@ -486,7 +402,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                                                 ) : field.type === 'select' ? (
                                                                     <Select
                                                                         onValueChange={inputField.onChange}
-                                                                        value={inputField.value}
+                                                                        value={inputField.value as string}
                                                                     >
                                                                         <FormControl>
                                                                             <SelectTrigger>
@@ -505,13 +421,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                                                                     <Input
                                                                         type="date"
                                                                         {...inputField}
-                                                                        value={inputField.value ? format(new Date(inputField.value), 'yyyy-MM-dd') : ''}
+                                                                        value={inputField.value ? format(new Date(inputField.value as string), 'yyyy-MM-dd') : ''}
                                                                     />
                                                                 ) : (
                                                                     <Input
                                                                         type={field.type === 'number' ? 'number' : 'text'}
                                                                         {...inputField}
-                                                                        value={inputField.value ?? ''}
+                                                                        value={(inputField.value as string | number) ?? ''}
                                                                         onChange={(e) => {
                                                                             const val = field.type === 'number' ? parseFloat(e.target.value) : e.target.value;
                                                                             inputField.onChange(val);

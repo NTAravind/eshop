@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import * as variantService from "@/services/variant.service";
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +22,7 @@ export async function GET(
         const variants = await variantService.listVariants(storeId, productId);
 
         return NextResponse.json(variants);
-    } catch (error: any) {
+    } catch (error) {
         console.error("[VARIANTS_GET]", error);
         return new NextResponse("Internal error", { status: 500 });
     }
@@ -45,7 +45,7 @@ export async function POST(
         const { storeId, productId } = await context.params;
         const body = await req.json();
 
-        const { sku, price, stock, isActive, customData } = body;
+        const { sku, price, stock, isActive, customData, images } = body;
 
         if (!sku) {
             return new NextResponse("SKU is required", { status: 400 });
@@ -60,12 +60,13 @@ export async function POST(
                 price: Math.round(price * 100), // Convert to paise
                 stock,
                 isActive,
-                customData: customData || {}
+                customData: customData || {},
+                images: Array.isArray(images) ? images : undefined
             }
         );
 
         return NextResponse.json(variant);
-    } catch (error: any) {
+    } catch (error) {
         console.error("[VARIANT_POST]", error);
         return new NextResponse("Internal error", { status: 500 });
     }

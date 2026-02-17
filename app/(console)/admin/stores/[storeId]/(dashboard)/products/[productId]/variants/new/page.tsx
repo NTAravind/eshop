@@ -1,5 +1,6 @@
 
 import { getProduct } from "@/services/product.service";
+import { getStoreWithAccount } from "@/services/store.service";
 import * as schemaService from "@/services/schema.service";
 import { VariantForm } from "../components/variant-form";
 import { notFound } from "next/navigation";
@@ -11,7 +12,10 @@ export default async function NewVariantPage({
 }) {
     const { storeId, productId } = await params;
 
-    const product = await getProduct(storeId, productId);
+    const [product, store] = await Promise.all([
+        getProduct(storeId, productId),
+        getStoreWithAccount(storeId)
+    ]);
 
     if (!product) {
         notFound();
@@ -26,7 +30,12 @@ export default async function NewVariantPage({
     return (
         <div className="flex-col">
             <div className="flex-1 space-y-4 p-8 pt-6">
-                <VariantForm initialData={null} productId={productId} productSchema={productSchema} />
+                <VariantForm
+                    initialData={null}
+                    productId={productId}
+                    productSchema={productSchema}
+                    currency={store?.currency || 'USD'}
+                />
             </div>
         </div>
     );

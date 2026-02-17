@@ -1,4 +1,4 @@
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 
 /**
  * Check if user is admin of a specific billing account

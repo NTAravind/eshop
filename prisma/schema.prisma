@@ -397,6 +397,7 @@ model Product {
   categoryId  String?   // Optional category for organization
   name        String
   description String?
+  image       String    @default("https://www.simrad-yachting.com/assets/img/default-product-img.png?w=400&h=225&scale=both&mode=max")
   customData  Json?     // Store custom attributes based on ProductSchema
   isActive    Boolean   @default(true)
   createdAt   DateTime  @default(now())

@@ -1,6 +1,6 @@
 'use server';
 
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 import * as subscriptionService from '@/services/subscription.service';
 import * as subscriptionDal from '@/dal/subscription.dal';
 import { PlanType, BillingCycle, SubscriptionStatus } from '@/app/generated/prisma';
@@ -421,7 +421,7 @@ export async function inviteAccountUserAction(
         // We need the current user ID to send the invite
         // Since this is a server action, we can use auth()
         // But we need to import it.
-        const { auth } = await import('@/lib/auth');
+        const { auth } = await import('@/server/auth');
         const session = await auth();
 
         if (!session?.user?.id) {
@@ -452,4 +452,3 @@ export async function inviteAccountUserAction(
         };
     }
 }
-

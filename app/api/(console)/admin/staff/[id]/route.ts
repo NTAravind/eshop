@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as storeStaffService from '@/services/storestaff.service';
 
 export const dynamic = 'force-dynamic';
@@ -50,11 +50,12 @@ export async function PATCH(
     );
 
     return NextResponse.json(staff);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update staff role error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update staff role';
     return NextResponse.json(
-      { error: error.message || 'Failed to update staff role' },
-      { status: error.message?.includes('Only') || error.message?.includes('Cannot') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') || message?.includes('Cannot') ? 403 : 400 }
     );
   }
 }
@@ -93,11 +94,12 @@ export async function DELETE(
     );
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Remove staff error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to remove staff member';
     return NextResponse.json(
-      { error: error.message || 'Failed to remove staff member' },
-      { status: error.message?.includes('Only') || error.message?.includes('Cannot') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') || message?.includes('Cannot') ? 403 : 400 }
     );
   }
 }

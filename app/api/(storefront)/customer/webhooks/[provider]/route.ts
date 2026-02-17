@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { handleStripeWebhook } from '@/lib/payments/stripe';
-import { handleRazorpayWebhook } from '@/lib/payments/razorpay';
+import { handleStripeWebhook } from '@/server/payments/stripe';
+import { handleRazorpayWebhook } from '@/server/payments/razorpay';
 
 /**
  * POST /api/webhooks/stripe

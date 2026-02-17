@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as paymentConfigService from '@/services/paymentConfig.service';
 
 export const dynamic = 'force-dynamic';
@@ -44,11 +44,12 @@ export async function GET(
     }
 
     return NextResponse.json(config);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Get payment config error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to get payment configuration';
     return NextResponse.json(
-      { error: error.message || 'Failed to get payment configuration' },
-      { status: error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') ? 403 : 400 }
     );
   }
 }
@@ -95,11 +96,12 @@ export async function PATCH(
     );
 
     return NextResponse.json(config);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update payment config error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update payment configuration';
     return NextResponse.json(
-      { error: error.message || 'Failed to update payment configuration' },
-      { status: error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') ? 403 : 400 }
     );
   }
 }
@@ -137,11 +139,12 @@ export async function DELETE(
     );
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Delete payment config error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete payment configuration';
     return NextResponse.json(
-      { error: error.message || 'Failed to delete payment configuration' },
-      { status: error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') ? 403 : 400 }
     );
   }
 }

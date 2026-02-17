@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as subscriptionDal from '@/dal/subscription.dal';
 import * as storeDataLayer from '@/dal/store.dal';
-import prisma from '@/lib/prisma'; // Direct prisma for efficient aggregation if needed, or use DAL
+import prisma from '@/server/db/prisma'; // Direct prisma for efficient aggregation if needed, or use DAL
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
         }
 
         const userId = session.user.id;
-        let userType: 'TENANT_ADMIN' | 'STORE_STAFF' = 'TENANT_ADMIN';
+        const userType: 'TENANT_ADMIN' | 'STORE_STAFF' = 'TENANT_ADMIN';
 
         // 1. Try to get Billing Account (Tenant Admin Status)
         const account = await subscriptionDal.getAccountByUserId(userId);

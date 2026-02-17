@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import {
     getActiveVariantSchema,
     listVariantSchemas,
@@ -9,7 +9,7 @@ import {
 import {
     validateSchemaDefinition,
     type SchemaDefinition,
-} from '@/lib/validators/schema-validator';
+} from '@/server/validators/schema-validator';
 import { getUserStoreRole } from '@/dal/store.dal';
 import { syncFacetsFromSchema } from '@/services/facet-sync.service';
 
@@ -109,7 +109,7 @@ export async function POST(
         }
 
         // Sync facets
-        await syncFacetsFromSchema(storeId, schema.id, 'VARIANT', fields as any);
+        await syncFacetsFromSchema(storeId, schema.id, 'VARIANT', fields as unknown as Parameters<typeof syncFacetsFromSchema>[3]);
 
         return NextResponse.json(schema, { status: 201 });
     } catch (error) {

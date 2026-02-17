@@ -14,6 +14,7 @@ import {
     AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/shared/utils';
 
 interface DashboardKPIs {
     totalBillingAccounts: number;
@@ -82,13 +83,6 @@ export default function SuperAdminDashboard() {
         setActionType('store');
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            minimumFractionDigits: 0,
-        }).format(amount / 100); // Convert from paise to rupees
-    };
 
     const totalActiveSubscriptions = data
         ? Object.values(data.kpis.activeSubscriptionsByPlan).reduce((a, b) => a + b, 0)
@@ -175,6 +169,7 @@ export default function SuperAdminDashboard() {
                 <RevenueChart
                     data={data?.subscriptionRevenueChart || []}
                     isLoading={isLoading}
+                    currency="USD"
                 />
                 <APIUsageChart
                     data={data?.apiUsageChart || []}

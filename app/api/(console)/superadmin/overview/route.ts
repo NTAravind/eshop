@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import * as superadminDal from '@/dal/superadmin.dal';
-import { requireSuperAdmin } from '@/lib/auth/requireSuperAdmin';
+import { requireSuperAdmin } from '@/server/auth/requireSuperAdmin';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as schemaService from '@/services/schema.service';
+import * as storeService from '@/services/store.service';
 
 export async function POST(
     req: Request,
@@ -12,6 +13,11 @@ export async function POST(
 
         if (!session?.user?.id) {
             return new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        const hasAccess = await storeService.verifyStoreAccess(session.user.id, storeId);
+        if (!hasAccess) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const body = await req.json();
@@ -36,10 +42,16 @@ export async function GET(
     { params }: { params: Promise<{ storeId: string }> }
 ) {
     try {
+        const session = await auth();
         const { storeId } = await params;
 
-        if (!storeId) {
-            return new NextResponse("Store ID is required", { status: 400 });
+        if (!session?.user?.id) {
+            return new NextResponse("Unauthorized", { status: 401 });
+        }
+
+        const hasAccess = await storeService.verifyStoreAccess(session.user.id, storeId);
+        if (!hasAccess) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const schemas = await schemaService.listSchemas(storeId);

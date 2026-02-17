@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import prisma from '@/lib/prisma';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
+import prisma from '@/server/db/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,8 +32,9 @@ export async function GET(req: NextRequest) {
         const total = await prisma.cart.count({ where: { storeId: tenant.storeId } });
 
         return NextResponse.json({ carts, total });
-    } catch (error: any) {
+    } catch (error) {
         console.error('List Carts Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

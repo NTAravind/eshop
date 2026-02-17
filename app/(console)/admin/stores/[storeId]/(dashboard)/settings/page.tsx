@@ -1,6 +1,6 @@
-import prisma from "@/lib/prisma";
+import prisma from "@/server/db/prisma";
 import { SettingsForm } from "./components/settings-form";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
@@ -49,6 +49,12 @@ export default async function SettingsPage({
                             className="justify-start rounded-md p-2 hover:bg-muted block"
                         >
                             Payments
+                        </Link>
+                        <Link
+                            href={`/admin/stores/${storeId}/settings/storefront`}
+                            className="justify-start rounded-md p-2 hover:bg-muted block"
+                        >
+                            Storefront
                         </Link>
                     </nav>
                 </aside>

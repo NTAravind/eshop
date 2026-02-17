@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as productService from '@/services/product.service';
 import * as variantService from '@/services/variant.service';
 
@@ -46,11 +46,11 @@ export async function PATCH(
 
         // Back-compat: migrate customData.images if present
         let imageUrls: string[] | undefined = Array.isArray(images) ? images : undefined;
-        const customDataObj: Record<string, any> =
-            customData && typeof customData === 'object' ? { ...(customData as any) } : {};
+        const customDataObj: Record<string, unknown> =
+            customData && typeof customData === 'object' ? { ...(customData as Record<string, unknown>) } : {};
 
-        if (!imageUrls && Array.isArray(customDataObj.images)) {
-            imageUrls = customDataObj.images;
+        if (!imageUrls && Array.isArray(customDataObj['images'])) {
+            imageUrls = customDataObj['images'] as string[];
         }
 
         if ('images' in customDataObj) {
@@ -64,10 +64,6 @@ export async function PATCH(
             isActive,
             productSchemaId,
             customData: customDataObj,
-            images: imageUrls
-                ?.filter((u: any) => typeof u === 'string')
-                .map((u: string) => u.trim())
-                .filter((u: string) => u !== ''),
         });
 
         if (price !== undefined || stock !== undefined || sku) {

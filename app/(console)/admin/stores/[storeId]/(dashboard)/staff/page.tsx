@@ -1,7 +1,7 @@
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import { redirect } from 'next/navigation';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import { getRbacContext } from '@/lib/rbac';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
+import { getRbacContext } from '@/server/rbac/rbac';
 import * as staffService from '@/services/storestaff.service';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

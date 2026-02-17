@@ -1,11 +1,12 @@
 import { notFound, redirect } from 'next/navigation';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
+import { getPublishedDocument, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
 import { StorefrontDocKind } from '@/app/generated/prisma';
 import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../_components/StorefrontPage';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import * as orderService from '@/services/order.service';
+import { formatCurrency } from '@/shared/utils';
 
 interface OrdersPageProps {
     params: Promise<{ slug: string }>;
@@ -34,9 +35,11 @@ export default async function StoreOrdersPage({ params }: OrdersPageProps) {
     const orders = ordersResult.orders || [];
 
     // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'ORDERS'),
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
@@ -70,11 +73,8 @@ export default async function StoreOrdersPage({ params }: OrdersPageProps) {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-semibold">
-                                                {new Intl.NumberFormat('en-US', {
-                                                    style: 'currency',
-                                                    currency: store.currency || 'USD',
-                                                }).format(order.total / 100)}
+                                            <p className="font-medium text-right">
+                                                {formatCurrency(order.total, store.currency || 'USD')}
                                             </p>
                                             <span className="text-sm px-2 py-1 bg-secondary rounded">{order.status}</span>
                                         </div>
@@ -98,6 +98,7 @@ export default async function StoreOrdersPage({ params }: OrdersPageProps) {
             }}
             layout={layout}
             page={page}
+            settings={settingsMap || undefined}
             user={{
                 id: session.user.id || '',
                 email: session.user.email || '',
@@ -117,6 +118,7 @@ export default async function StoreOrdersPage({ params }: OrdersPageProps) {
                     page: 1,
                     pageSize: 10,
                 },
+                prefabs,
             }}
         />
     );

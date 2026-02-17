@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as storeStaffService from '@/services/storestaff.service';
 
 export const dynamic = 'force-dynamic';
@@ -53,11 +53,12 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(staff, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Add staff error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to add staff member';
     return NextResponse.json(
-      { error: error.message || 'Failed to add staff member' },
-      { status: error.message?.includes('Only') || error.message?.includes('already') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('Only') || message?.includes('already') ? 403 : 400 }
     );
   }
 }
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
  * GET /api/store-staff
  * List all staff members (requires SUPPORT role)
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const tenant = await resolveTenant();
 
@@ -90,11 +91,12 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ staff });
-  } catch (error: any) {
+  } catch (error) {
     console.error('List staff error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list staff';
     return NextResponse.json(
-      { error: error.message || 'Failed to list staff' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message?.includes('denied') ? 403 : 400 }
     );
   }
 }

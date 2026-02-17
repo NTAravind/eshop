@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as orderService from '@/services/order.service';
-import { getSessionUser } from '@/lib/auth/getSession';
+import { getSessionUser } from '@/server/auth/getSession';
 
 export async function POST(
     request: Request,
@@ -20,9 +20,10 @@ export async function POST(
         const order = await orderService.completeOrder(user.id, storeId, orderId);
 
         return NextResponse.json({ success: true, order });
-    } catch (error: any) {
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: message },
             { status: 400 }
         );
     }

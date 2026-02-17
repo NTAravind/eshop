@@ -1,4 +1,4 @@
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import * as paymentConfigDal from "@/dal/paymentConfig.dal";
 import { PaymentMethodsClient } from "./components/payment-methods-client";
 import { Separator } from "@/components/ui/separator";

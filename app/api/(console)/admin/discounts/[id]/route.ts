@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as discountService from '@/services/discount.service';
 
 export const dynamic = 'force-dynamic';
@@ -48,11 +48,12 @@ export async function GET(
     }
 
     return NextResponse.json(discount);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Get discount error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to get discount';
     return NextResponse.json(
-      { error: error.message || 'Failed to get discount' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') ? 403 : 400 }
     );
   }
 }
@@ -109,11 +110,12 @@ export async function PATCH(
     );
 
     return NextResponse.json(discount);
-  } catch (error: any) {
+  } catch (error) {
     console.error('Update discount error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update discount';
     return NextResponse.json(
-      { error: error.message || 'Failed to update discount' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') ? 403 : 400 }
     );
   }
 }
@@ -153,11 +155,12 @@ export async function DELETE(
     );
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Delete discount error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete discount';
     return NextResponse.json(
-      { error: error.message || 'Failed to delete discount' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') ? 403 : 400 }
     );
   }
 }

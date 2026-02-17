@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import {
     getActiveProductSchema,
     listProductSchemas,
@@ -9,7 +9,7 @@ import {
 import {
     validateSchemaDefinition,
     type SchemaDefinition,
-} from '@/lib/validators/schema-validator';
+} from '@/server/validators/schema-validator';
 import { getUserStoreRole } from '@/dal/store.dal';
 
 /**

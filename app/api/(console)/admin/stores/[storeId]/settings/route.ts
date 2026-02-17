@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import prisma from '@/lib/prisma';
-import { toErrorResponse } from '@/lib/errors';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
+import prisma from '@/server/db/prisma';
+import { toErrorResponse } from '@/shared/utils/errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +42,7 @@ export async function GET(
         }
 
         return NextResponse.json(store);
-    } catch (error: any) {
+    } catch (error) {
         const errorResponse = toErrorResponse(error);
         return NextResponse.json(
             { error: errorResponse.error },
@@ -88,7 +88,7 @@ export async function PATCH(
         });
 
         return NextResponse.json(store);
-    } catch (error: any) {
+    } catch (error) {
         const errorResponse = toErrorResponse(error);
         return NextResponse.json(
             { error: errorResponse.error },

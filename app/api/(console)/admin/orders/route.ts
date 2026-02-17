@@ -1,12 +1,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as orderService from '@/services/order.service';
 
 export const dynamic = 'force-dynamic';
 import { hasWriteScope } from '@/services/apiKey.service';
 import { OrderStatus } from '@/app/generated/prisma';
-import { toErrorResponse } from '@/lib/errors';
+import { toErrorResponse } from '@/shared/utils/errors';
 
 /**
  * POST /api/orders
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(order, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     const errorResponse = toErrorResponse(error);
     return NextResponse.json(
       { error: errorResponse.error, details: errorResponse.details },
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error) {
     const errorResponse = toErrorResponse(error);
     return NextResponse.json(
       { error: errorResponse.error, details: errorResponse.details },

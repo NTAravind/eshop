@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
+import { auth } from '@/server/auth';
 import * as storeService from '@/services/store.service';
 
 export const dynamic = 'force-dynamic';
@@ -27,11 +27,12 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json(store, { status: 201 });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Create store error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to create store';
         return NextResponse.json(
-            { error: error.message || 'Failed to create store' },
-            { status: error.message?.includes('limit') || error.message?.includes('already') ? 400 : 500 }
+            { error: message },
+            { status: message?.includes('limit') || message?.includes('already') ? 400 : 500 }
         );
     }
 }
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
  * GET /api/admin/stores
  * List stores for user's account
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         const session = await auth();
 
@@ -54,10 +55,11 @@ export async function GET(req: NextRequest) {
         const stores = await storeService.listStoresForUser(session.user.id);
 
         return NextResponse.json({ stores });
-    } catch (error: any) {
+    } catch (error) {
         console.error('List stores error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to list stores';
         return NextResponse.json(
-            { error: error.message || 'Failed to list stores' },
+            { error: message },
             { status: 500 }
         );
     }

@@ -1,8 +1,9 @@
 import NextAuth from "next-auth";
+
 import Google from "next-auth/providers/google";
 import Instagram from "next-auth/providers/instagram";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import prisma from "@/lib/prisma";
+import prisma from "@/server/db/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.AUTH_SECRET,
@@ -32,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
     updateAge: 24 * 60 * 60, // 24 hours
   },
@@ -44,11 +45,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 
   callbacks: {
-    async session({ session, user }) {
+    async session({ session, user, token }) {
       if (session.user) {
-        session.user.id = user.id;
+        session.user.id = user?.id || (token?.sub as string | undefined) || '';
       }
       return session;
+    },
+
+    async jwt({ token, user }) {
+      if (user?.id) {
+        token.sub = user.id;
+      }
+      return token;
     },
 
     async signIn({ user, account, profile }) {

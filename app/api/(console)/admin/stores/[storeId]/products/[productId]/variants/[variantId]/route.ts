@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth } from "@/server/auth";
 import * as variantService from "@/services/variant.service";
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export async function GET(
         }
 
         return NextResponse.json(variant);
-    } catch (error: any) {
+    } catch (error) {
         console.error("[VARIANT_GET]", error);
         return new NextResponse("Internal error", { status: 500 });
     }
@@ -49,14 +49,15 @@ export async function PATCH(
         const { storeId, variantId } = await context.params;
         const body = await req.json();
 
-        const { sku, price, stock, isActive, customData } = body;
+        const { sku, price, stock, isActive, customData, images } = body;
 
-        const updateData: any = {};
+        const updateData: Partial<Parameters<typeof variantService.updateVariant>[3]> = {};
         if (sku !== undefined) updateData.sku = sku;
         if (price !== undefined) updateData.price = Math.round(price * 100); // Convert to paise
         if (stock !== undefined) updateData.stock = stock;
         if (isActive !== undefined) updateData.isActive = isActive;
         if (customData !== undefined) updateData.customData = customData;
+        if (images !== undefined) updateData.images = Array.isArray(images) ? images : undefined;
 
         const variant = await variantService.updateVariant(
             session.user.id,
@@ -66,7 +67,7 @@ export async function PATCH(
         );
 
         return NextResponse.json(variant);
-    } catch (error: any) {
+    } catch (error) {
         console.error("[VARIANT_PATCH]", error);
         return new NextResponse("Internal error", { status: 500 });
     }
@@ -91,7 +92,7 @@ export async function DELETE(
         await variantService.deleteVariant(session.user.id, storeId, variantId);
 
         return new NextResponse(null, { status: 204 });
-    } catch (error: any) {
+    } catch (error) {
         console.error("[VARIANT_DELETE]", error);
         return new NextResponse("Internal error", { status: 500 });
     }

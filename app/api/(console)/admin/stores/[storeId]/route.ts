@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as storeService from '@/services/store.service';
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,10 +58,11 @@ export async function GET(
         }
 
         return NextResponse.json(store);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Get store error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to get store';
         return NextResponse.json(
-            { error: error.message || 'Failed to get store' },
+            { error: message },
             { status: 500 }
         );
     }
@@ -121,10 +122,11 @@ export async function PATCH(
         });
 
         return NextResponse.json(store);
-    } catch (error: any) {
+    } catch (error) {
         console.error('Update store error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to update store';
         return NextResponse.json(
-            { error: error.message || 'Failed to update store' },
+            { error: message },
             { status: 500 }
         );
     }
@@ -159,11 +161,12 @@ export async function DELETE(
         await storeService.deleteStore(tenant.userId, storeId);
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Delete store error:', error);
+        const message = error instanceof Error ? error.message : 'Failed to delete store';
         return NextResponse.json(
-            { error: error.message || 'Failed to delete store' },
-            { status: error.message?.includes('Only') ? 403 : 500 }
+            { error: message },
+            { status: message?.includes('Only') ? 403 : 500 }
         );
     }
 }

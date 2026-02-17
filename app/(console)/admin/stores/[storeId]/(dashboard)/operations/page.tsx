@@ -1,4 +1,4 @@
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 import { NotificationHistoryTable } from "./notification-history";
 import { getNotificationStats, listNotifications } from "@/services/notification/notification.service";

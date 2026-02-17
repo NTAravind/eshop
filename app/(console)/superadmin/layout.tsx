@@ -1,7 +1,7 @@
 import { SuperAdminSidebar } from '@/components/superadmin/sidebar';
-import { auth } from '@/lib/auth';
+import { auth } from '@/server/auth';
 import { redirect } from 'next/navigation';
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 
 export default async function SuperAdminLayout({
     children,
@@ -11,7 +11,7 @@ export default async function SuperAdminLayout({
     const session = await auth();
 
     if (!session?.user?.id) {
-        redirect('/auth/signin?callbackUrl=/superadmin');
+        redirect('/login?callbackUrl=/superadmin');
     }
 
     // Check if user is superadmin

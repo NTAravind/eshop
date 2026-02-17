@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import prisma from '@/server/db/prisma';
 import * as subscriptionDal from '@/dal/subscription.dal';
-import { requireSuperAdmin } from '@/lib/auth/requireSuperAdmin';
+import { requireSuperAdmin } from '@/server/auth/requireSuperAdmin';
 
 export const dynamic = 'force-dynamic';
 

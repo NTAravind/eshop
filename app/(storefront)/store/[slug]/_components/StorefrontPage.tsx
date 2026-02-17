@@ -5,7 +5,7 @@
  * Wraps the RuntimeContext and Renderer
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type {
     StorefrontNode,
     StoreContext,
@@ -18,13 +18,14 @@ import type {
     VariantContext,
     OrdersContext,
     OrderContext,
+    ThemeVars,
 } from '@/types/storefront-builder';
-import { RuntimeContextProvider } from '@/lib/storefront/runtime/context';
-import { RendererWithLayout } from '@/lib/storefront/runtime/renderer';
-import { initializeRegistry } from '@/lib/storefront/registry/init';
+import { RuntimeContextProvider } from '@/modules/storefront/runtime/context';
+import { RendererWithLayout } from '@/modules/storefront/runtime/renderer';
+import { initializeRegistry } from '@/modules/storefront/registry/init';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-import { getCartAction } from '@/app/actions/cart';
+
 
 // Initialize registry on client-side
 if (typeof window !== 'undefined') {
@@ -45,14 +46,16 @@ interface StorefrontPageProps {
     settings?: SettingsContext;
     user?: UserContext | null;
     cart?: CartContext | null;
+    theme?: ThemeVars;
     pageData?: {
         collection?: Partial<CollectionContext>;
-        facets?: FacetsContext['facets'];
+        facets?: FacetsContext;
         product?: ProductContext;
         selectedVariant?: Partial<VariantContext>;
         similarProducts?: ProductContext[];
         orders?: OrdersContext;
         order?: OrderContext;
+        prefabs?: Record<string, StorefrontNode>;
     };
 }
 
@@ -63,6 +66,7 @@ export function StorefrontPage({
     settings = { deliveryModes: ['DELIVERY', 'PICKUP'], checkoutFields: {}, profileFields: {} },
     user = null,
     cart = null,
+    theme,
     pageData = {},
 }: StorefrontPageProps) {
     const pathname = usePathname();
@@ -95,20 +99,41 @@ export function StorefrontPage({
 
     const handleCartRefresh = useCallback(async () => {
         try {
-            const updatedCart = await getCartAction(store.id);
-            if (updatedCart) {
-                setCartState(updatedCart);
+            const response = await fetch(`/api/customer/cart?storeId=${encodeURIComponent(store.id)}`, {
+                method: 'GET',
+                cache: 'no-store',
+            });
+
+            if (!response.ok) {
+                return;
             }
+
+            const updatedCart = await response.json();
+            setCartState(updatedCart);
         } catch (error) {
             console.error('Failed to refresh cart:', error);
         }
     }, [store.id]);
+
+    useEffect(() => {
+        if (!cartState) {
+            handleCartRefresh();
+        }
+    }, [cartState, handleCartRefresh]);
 
     // Create properly typed store context with defaults
     const storeContext = {
         ...store,
         requirePhoneNumber: store.requirePhoneNumber ?? false,
     };
+
+
+
+
+
+    // ... (existing imports)
+
+    // ... inside StorefrontPage component ...
 
     return (
         <RuntimeContextProvider
@@ -121,7 +146,7 @@ export function StorefrontPage({
                 searchParams: searchParamsRecord,
                 params: routeParams,
             }}
-            pageData={pageData as Partial<Pick<import('@/types/storefront-builder').RuntimeContext, 'collection' | 'facets' | 'product' | 'selectedVariant' | 'similarProducts' | 'orders'>>}
+            pageData={pageData as any}
             onCartRefresh={handleCartRefresh}
         >
             <RendererWithLayout layout={layout} page={page} />

@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
+import { getPublishedDocument, getPublishedTheme, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
 import { StorefrontDocKind } from '@/app/generated/prisma';
-import type { StorefrontNode } from '@/types/storefront-builder';
+import type { StorefrontNode, ThemeVars } from '@/types/storefront-builder';
 import { StorefrontPage } from './_components/StorefrontPage';
 
 interface StoreHomePageProps {
@@ -17,14 +18,18 @@ export default async function StoreHomePage({ params }: StoreHomePageProps) {
         notFound();
     }
 
-    // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    // Get published documents and theme
+    const [layoutDoc, pageDoc, themeDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'HOME'),
+        getPublishedTheme(store.id),
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
     const page = pageDoc?.tree as unknown as StorefrontNode;
+    const theme = themeDoc?.vars as unknown as ThemeVars | undefined;
 
     // Fallback UI if no published page
     if (!page) {
@@ -44,15 +49,20 @@ export default async function StoreHomePage({ params }: StoreHomePageProps) {
     }
 
     return (
-        <StorefrontPage
-            store={{
-                id: store.id,
-                name: store.name,
-                slug: store.slug,
-                currency: store.currency || 'USD',
-            }}
-            layout={layout}
-            page={page}
-        />
+        <Suspense fallback={null}>
+            <StorefrontPage
+                store={{
+                    id: store.id,
+                    name: store.name,
+                    slug: store.slug,
+                    currency: store.currency || 'USD',
+                }}
+                layout={layout}
+                page={page}
+                theme={theme}
+                settings={settingsMap || undefined}
+                pageData={{ prefabs }}
+            />
+        </Suspense>
     );
 }

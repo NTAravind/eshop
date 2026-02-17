@@ -1,7 +1,7 @@
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import * as storeDal from "@/dal/store.dal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/shared/utils";
 import { DollarSign, ShoppingBag, Package, AlertTriangle } from "lucide-react";
 import { redirect } from "next/navigation";
 import { SeedStoreButton } from "@/components/admin/SeedStoreButton";

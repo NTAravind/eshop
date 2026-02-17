@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { formatCurrency } from "@/shared/utils";
 import { useState } from "react";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,9 +37,10 @@ interface Variant {
 interface VariantListProps {
     variants: Variant[];
     productId: string;
+    currency?: string;
 }
 
-export const VariantList: React.FC<VariantListProps> = ({ variants, productId }) => {
+export const VariantList: React.FC<VariantListProps> = ({ variants, productId, currency = 'USD' }) => {
     const params = useParams();
     const router = useRouter();
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string | null }>({
@@ -121,7 +123,7 @@ export const VariantList: React.FC<VariantListProps> = ({ variants, productId })
                     {variants.map((variant) => (
                         <TableRow key={variant.id}>
                             <TableCell className="font-medium">{variant.sku}</TableCell>
-                            <TableCell>₹{(variant.price / 100).toFixed(2)}</TableCell>
+                            <TableCell>{formatCurrency(variant.price, currency)}</TableCell>
                             <TableCell>{variant.stock}</TableCell>
                             <TableCell>{renderCustomData(variant.customData)}</TableCell>
                             <TableCell>

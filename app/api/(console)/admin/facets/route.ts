@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { NextResponse } from 'next/server';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as facetDal from '@/dal/facet.dal';
 
 export const dynamic = 'force-dynamic';
-import { requireStoreRole } from '@/lib/auth/requireStore';
-import { hasWriteScope } from '@/services/apiKey.service';
+
 
 /**
  * POST /api/facets
@@ -14,7 +13,7 @@ import { hasWriteScope } from '@/services/apiKey.service';
  * POST /api/facets
  * Deprecated: Facets are now automatically generated from Product/Variant Schemas.
  */
-export async function POST(req: NextRequest) {
+export async function POST() {
   return NextResponse.json(
     { error: 'Manual facet creation is deprecated. Facets are generated from Product/Variant Schemas.' },
     { status: 400 }
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
  * GET /api/facets
  * List all facets with their values
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const tenant = await resolveTenant();
 
@@ -43,10 +42,11 @@ export async function GET(req: NextRequest) {
     const facets = await facetDal.listFacets(tenant.storeId);
 
     return NextResponse.json({ facets });
-  } catch (error: any) {
+  } catch (error) {
     console.error('List facets error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list facets';
     return NextResponse.json(
-      { error: error.message || 'Failed to list facets' },
+      { error: message },
       { status: 400 }
     );
   }

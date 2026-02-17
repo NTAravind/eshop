@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveStorefront } from '@/lib/tenant/resolveStorefront';
+import { resolveStorefront } from '@/server/tenant/resolveStorefront';
 import * as orderService from '@/services/order.service';
 import { OrderStatus } from '@/app/generated/prisma';
-import { toErrorResponse } from '@/lib/errors';
+import { toErrorResponse } from '@/shared/utils/errors';
 
 export const dynamic = 'force-dynamic';
 

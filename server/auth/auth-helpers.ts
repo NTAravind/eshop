@@ -3,8 +3,8 @@
  * Provides authorization utilities for store-level access control
  */
 
-import { auth } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { auth } from '@/server/auth';
+import prisma from '@/server/db/prisma';
 import type { StoreRole } from '@/app/generated/prisma';
 
 export interface TenantContext {

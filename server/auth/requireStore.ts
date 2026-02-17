@@ -1,4 +1,4 @@
-import prisma from '../prisma';
+import prisma from '../db/prisma';
 import { StoreRole } from '@/app/generated/prisma';
 
 const ROLE_HIERARCHY: Record<StoreRole, number> = {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma from '@/server/db/prisma'
 import { getTemplateByEvent } from '@/dal/notification-template.dal'
 import { buildWhatsAppTemplateComponents } from '@/services/notification-template.service'
-import type { TemplateVariableContext } from '@/types/notification-template.types'
-import { resolveTenant } from '@/lib/tenant/resolveTenant'
+import type { TemplateVariableContext } from '@/shared/types/notification-template.types'
+
 
 export async function POST(
     request: NextRequest,
@@ -110,11 +110,11 @@ export async function POST(
             notificationSent: true,
         })
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error updating order:', error)
 
         // Check if it's a Prisma error (order not found, etc.)
-        if (error?.code === 'P2025') {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
             return NextResponse.json(
                 { error: 'Order not found' },
                 { status: 404 }
@@ -129,10 +129,12 @@ export async function POST(
             )
         }
 
+        const message = error instanceof Error ? error.message : 'Failed to update order';
+
         return NextResponse.json(
             {
                 error: 'Failed to update order',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+                details: process.env.NODE_ENV === 'development' ? message : undefined,
             },
             { status: 500 }
         )
@@ -145,7 +147,7 @@ async function SendWhatsappmsg(
     templateName: string,
     languageCode: string,
     context: TemplateVariableContext
-): Promise<{ success: boolean; error?: string; data?: any }> {
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
     try {
         // Get WhatsApp config from NotificationConfig
         const whatsappConfig = await prisma.notificationConfig.findUnique({
@@ -161,7 +163,12 @@ async function SendWhatsappmsg(
             throw new Error('WhatsApp is not configured for this store')
         }
 
-        const config = whatsappConfig.config as any
+        interface WhatsAppConfig {
+            phoneNumberId?: string;
+            accessToken?: string;
+        }
+
+        const config = whatsappConfig.config as unknown as WhatsAppConfig;
 
         // Validate required config
         if (!config.phoneNumberId) {
@@ -261,13 +268,14 @@ async function SendWhatsappmsg(
             data: responseData,
         }
 
-    } catch (error: any) {
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error occurred while sending WhatsApp message';
         console.error('Error sending WhatsApp message:', {
             phone,
             templateName,
             languageCode,
-            error: error.message,
-            stack: error.stack,
+            error: message,
+            stack: error instanceof Error ? error.stack : undefined,
         })
 
         // Log failed notification
@@ -279,7 +287,7 @@ async function SendWhatsappmsg(
                     recipient: phone,
                     content: `Template: ${templateName} (${languageCode})`,
                     status: 'FAILED',
-                    error: error.message,
+                    error: message,
                 },
             })
         } catch (logError) {
@@ -288,7 +296,7 @@ async function SendWhatsappmsg(
 
         return {
             success: false,
-            error: error.message || 'Unknown error occurred while sending WhatsApp message',
+            error: message,
         }
     }
 }

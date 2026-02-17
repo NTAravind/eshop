@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { auth } from '@/server/auth';
+import prisma from '@/server/db/prisma';
 import { revalidatePath } from 'next/cache';
 
 export async function POST(request: NextRequest) {
@@ -104,14 +104,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check if user is already assigned to this store
-        const existingStaff = await prisma.storeStaff.findUnique({
-            where: {
-                storeId_userId: {
-                    storeId: storeId,
-                    userId: user.id,
-                },
-            },
-        });
+        // Check if user is already assigned to this store
+        // const existingStaff = await prisma.storeStaff.findUnique({ ... }); - Unused
 
         // ENFORCE SINGLE OWNER POLICY
         // Remove ALL existing owners for this store before creating/updating the new one.
@@ -165,11 +159,19 @@ export async function POST(request: NextRequest) {
             message: `Successfully assigned ${normalizedEmail} as the new store owner`
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[API /api/admin/assign-owner] Error occurred:', error);
-        console.error('[API /api/admin/assign-owner] Error stack:', error.stack);
+
+        // Safe error handling
+        const errorMessage = error instanceof Error ? error.message : 'Failed to assign store owner';
+        const errorStack = error instanceof Error ? error.stack : undefined;
+
+        if (errorStack) {
+            console.error('[API /api/admin/assign-owner] Error stack:', errorStack);
+        }
+
         return NextResponse.json(
-            { error: error.message || 'Failed to assign store owner' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

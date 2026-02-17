@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as orderDal from '@/dal/order.dal';
 
 export const dynamic = 'force-dynamic';
-import { createStripePaymentIntent } from '@/lib/payments/stripe';
-import { createRazorpayOrder } from '@/lib/payments/razorpay';
+import { createStripePaymentIntent } from '@/server/payments/stripe';
+import { createRazorpayOrder } from '@/server/payments/razorpay';
 
 /**
  * POST /api/payments/intent

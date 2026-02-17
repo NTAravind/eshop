@@ -1,9 +1,10 @@
-import { redirect } from 'next/navigation';
 import * as storefrontService from '@/services/storefront.service';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { StorefrontDocKind } from '@/app/generated/prisma';
+import { SyncDefaultPagesButton } from '@/components/builder/SyncDefaultPagesButton';
+import { CreateDocumentButton } from './components/CreateDocumentButton';
 
 export default async function BuilderDocumentListPage({
     params,
@@ -35,23 +36,32 @@ export default async function BuilderDocumentListPage({
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-3xl font-bold">Storefront Builder</h1>
-                    <p className="text-muted-foreground">Select a document to edit.</p>
+                    <p className="text-muted-foreground">Select a document to edit or create a new one.</p>
                 </div>
-                <Button variant="outline" asChild>
-                    <Link href={`/admin/stores/${storeId}`}>Back to Dashboard</Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    <SyncDefaultPagesButton storeId={storeId} />
+                    <CreateDocumentButton storeId={storeId} />
+                    <Button variant="outline" asChild>
+                        <Link href={`/admin/stores/${storeId}`}>Back to Dashboard</Link>
+                    </Button>
+                </div>
             </div>
 
             <div className="space-y-8">
                 {kindOrder.map((kind) => {
                     const docs = grouped[kind] || [];
-                    if (docs.length === 0) return null;
+                    const kindLabel = kind.toLowerCase().replace('_', ' ');
 
                     return (
                         <div key={kind} className="space-y-4">
-                            <h2 className="text-xl font-semibold capitalize">
-                                {kind.toLowerCase().replace('_', ' ')}s
-                            </h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-semibold capitalize">
+                                    {kindLabel}s
+                                </h2>
+                                <span className="text-sm text-muted-foreground">
+                                    {docs.length} {docs.length === 1 ? 'document' : 'documents'}
+                                </span>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {docs.map((doc) => (
                                     <div key={doc.id}>
@@ -74,6 +84,21 @@ export default async function BuilderDocumentListPage({
                                         </Card>
                                     </div>
                                 ))}
+                                {docs.length === 0 && (
+                                    <Card className="border-dashed h-full">
+                                        <CardHeader>
+                                            <CardTitle className="text-lg text-muted-foreground">
+                                                No {kindLabel}s yet
+                                            </CardTitle>
+                                            <CardDescription>
+                                                Create your first {kindLabel} to get started
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <CreateDocumentButton storeId={storeId} />
+                                        </CardContent>
+                                    </Card>
+                                )}
                             </div>
                         </div>
                     );

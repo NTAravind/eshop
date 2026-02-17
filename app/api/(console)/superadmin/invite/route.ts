@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { getRbacContext } from '@/lib/rbac';
+import { auth } from '@/server/auth';
+import { getRbacContext } from '@/server/rbac/rbac';
 import { inviteAccountUser } from '@/services/invitation.service';
 
 export const dynamic = 'force-dynamic';

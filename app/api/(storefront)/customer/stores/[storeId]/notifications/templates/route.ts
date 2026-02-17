@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth/getSession';
-import { requireStoreRole } from '@/lib/auth/requireStore';
+import prisma from '@/server/db/prisma';
+import { getSessionUser } from '@/server/auth/getSession';
+import { requireStoreRole } from '@/server/auth/requireStore';
 
 export async function GET(
     request: Request,

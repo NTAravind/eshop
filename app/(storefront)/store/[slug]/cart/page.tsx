@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getStoreBySlug } from '@/services/store.service';
-import { getPublishedDocument } from '@/services/storefront.service';
+import { getPublishedDocument, getSettings, getPublishedPrefabs } from '@/services/storefront.service';
 import { StorefrontDocKind } from '@/app/generated/prisma';
 import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../_components/StorefrontPage';
@@ -18,9 +18,11 @@ export default async function StoreCartPage({ params }: CartPageProps) {
     }
 
     // Get published documents
-    const [layoutDoc, pageDoc] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'CART'),
+        getSettings(store.id),
+        getPublishedPrefabs(store.id),
     ]);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
@@ -56,6 +58,8 @@ export default async function StoreCartPage({ params }: CartPageProps) {
             }}
             layout={layout}
             page={page}
+            settings={settingsMap || undefined}
+            pageData={{ prefabs }}
         />
     );
 }

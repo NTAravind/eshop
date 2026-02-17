@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma from '@/server/db/prisma'
 import { getTemplateByEvent } from '@/dal/notification-template.dal'
 import { buildWhatsAppTemplateComponents } from '@/services/notification-template.service'
-import type { TemplateVariableContext } from '@/types/notification-template.types'
-import { resolveTenant } from '@/lib/tenant/resolveTenant'
+import type { TemplateVariableContext } from '@/shared/types/notification-template.types'
+import { resolveTenant } from '@/server/tenant/resolveTenant'
 
 export async function POST(
     request: NextRequest,

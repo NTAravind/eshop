@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
-import { confirmStripePayment } from '@/lib/payments/stripe';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
+import { confirmStripePayment } from '@/server/payments/stripe';
 
 export const dynamic = 'force-dynamic';
-import { captureRazorpayPayment } from '@/lib/payments/razorpay';
+import { captureRazorpayPayment } from '@/server/payments/razorpay';
 
 /**
  * POST /api/payments/verify

@@ -1,5 +1,5 @@
 import { ProductSchemaForm } from "@/components/admin/product-schema-form";
-import prisma from "@/lib/prisma"; // Direct DB access for initial data, or use service
+import prisma from "@/server/db/prisma"; // Direct DB access for initial data, or use service
 import { notFound } from "next/navigation";
 
 export const dynamic = 'force-dynamic';

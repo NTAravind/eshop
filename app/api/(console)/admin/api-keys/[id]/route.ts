@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as apiKeyService from '@/services/apiKey.service';
 
 export const dynamic = 'force-dynamic';
@@ -34,11 +34,12 @@ export async function DELETE(
     await apiKeyService.revokeKey(tenant.userId, tenant.storeId, params.id);
 
     return NextResponse.json({ success: true, revoked: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Revoke API key error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to revoke API key';
     return NextResponse.json(
-      { error: error.message || 'Failed to revoke API key' },
-      { status: error.message?.includes('denied') || error.message?.includes('Only') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') || message.includes('Only') ? 403 : 400 }
     );
   }
 }

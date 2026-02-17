@@ -3,7 +3,7 @@ import { ProductsClient } from "./client";
 import { ProductColumn } from "./columns";
 import * as productService from "@/services/product.service";
 import * as schemaService from "@/services/schema.service";
-import { resolveTenant } from "@/lib/tenant/resolveTenant";
+import { resolveTenant } from "@/server/tenant/resolveTenant";
 import { redirect } from "next/navigation";
 
 export const dynamic = 'force-dynamic';

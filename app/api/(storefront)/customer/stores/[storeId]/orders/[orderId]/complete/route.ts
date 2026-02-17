@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as orderService from '@/services/order.service';
-import { getSessionUser } from '@/lib/auth/getSession';
+import { getSessionUser } from '@/server/auth/getSession';
 
 export async function POST(
     request: Request,

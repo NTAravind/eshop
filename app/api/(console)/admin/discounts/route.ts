@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveTenant } from '@/lib/tenant/resolveTenant';
+import { resolveTenant } from '@/server/tenant/resolveTenant';
 import * as discountService from '@/services/discount.service';
 import { hasWriteScope } from '@/services/apiKey.service';
+import { DiscountScope } from '@/app/generated/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,11 +55,12 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(discount, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Create discount error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create discount';
     return NextResponse.json(
-      { error: error.message || 'Failed to create discount' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') ? 403 : 400 }
     );
   }
 }
@@ -94,7 +96,7 @@ export async function GET(req: NextRequest) {
     const filters = {
       isActive: searchParams.get('isActive') === 'true' ? true :
         searchParams.get('isActive') === 'false' ? false : undefined,
-      scope: searchParams.get('scope') as any,
+      scope: searchParams.get('scope') as DiscountScope,
       skip: parseInt(searchParams.get('skip') || '0'),
       take: parseInt(searchParams.get('take') || '50'),
     };
@@ -106,11 +108,12 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error) {
     console.error('List discounts error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to list discounts';
     return NextResponse.json(
-      { error: error.message || 'Failed to list discounts' },
-      { status: error.message?.includes('denied') ? 403 : 400 }
+      { error: message },
+      { status: message.includes('denied') ? 403 : 400 }
     );
   }
 }

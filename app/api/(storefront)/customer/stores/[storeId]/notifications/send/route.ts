@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendNotification } from '@/services/notification/notification.service';
 import { NotificationChannel } from '@/app/generated/prisma';
 import { z } from 'zod';
-import { getSessionUser } from '@/lib/auth/getSession';
-import { requireStoreRole } from '@/lib/auth/requireStore';
+import { getSessionUser } from '@/server/auth/getSession';
+import { requireStoreRole } from '@/server/auth/requireStore';
 
 export const dynamic = 'force-dynamic';
 

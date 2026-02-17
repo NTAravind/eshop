@@ -5,7 +5,7 @@ import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Trash, Code, SlidersHorizontal } from "lucide-react";
+import { Trash, Code, SlidersHorizontal, Image as ImageIcon, Plus, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 import { Input } from "@/components/ui/input";
@@ -40,12 +40,14 @@ interface VariantFormProps {
     initialData: any | null;
     productId: string;
     productSchema?: any | null;
+    currency?: string;
 }
 
 export const VariantForm: React.FC<VariantFormProps> = ({
     initialData,
     productId,
-    productSchema
+    productSchema,
+    currency = 'USD'
 }) => {
     const params = useParams();
     const router = useRouter();
@@ -53,6 +55,9 @@ export const VariantForm: React.FC<VariantFormProps> = ({
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isJsonMode, setIsJsonMode] = useState(false);
+    const [imageUrls, setImageUrls] = useState<string[]>(
+        (initialData?.images?.map((img: any) => img.url) as string[]) || []
+    );
 
     const title = initialData ? "Edit variant" : "Create variant";
     const description = initialData ? "Edit variant details and custom attributes." : "Add a new variant with SKU, price, and stock.";
@@ -97,6 +102,10 @@ export const VariantForm: React.FC<VariantFormProps> = ({
                 stock: data.stock,
                 isActive: data.isActive,
                 customData: customData || {},
+                images: imageUrls
+                    .filter((url) => typeof url === 'string')
+                    .map((url) => url.trim())
+                    .filter((url) => url !== ''),
             };
 
             if (initialData) {
@@ -201,7 +210,7 @@ export const VariantForm: React.FC<VariantFormProps> = ({
                             name="price"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Price (₹)</FormLabel>
+                                    <FormLabel>Price ({currency})</FormLabel>
                                     <FormControl>
                                         <Input
                                             type="number"
@@ -258,6 +267,102 @@ export const VariantForm: React.FC<VariantFormProps> = ({
                             </FormItem>
                         )}
                     />
+
+                    {/* Variant Images Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-medium">Variant Images</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Add image URLs for this variant
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setImageUrls([...imageUrls, ""])}
+                                disabled={loading}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add Image
+                            </Button>
+                        </div>
+
+                        {imageUrls.length > 0 && (
+                            <div className="space-y-4">
+                                {imageUrls.map((url, index) => (
+                                    <div key={index} className="flex items-start gap-4">
+                                        <div className="flex-1 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    placeholder="https://example.com/image.jpg"
+                                                    value={url}
+                                                    onChange={(e) => {
+                                                        const newUrls = [...imageUrls];
+                                                        newUrls[index] = e.target.value;
+                                                        setImageUrls(newUrls);
+                                                    }}
+                                                    disabled={loading}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => {
+                                                        const newUrls = imageUrls.filter((_, i) => i !== index);
+                                                        setImageUrls(newUrls);
+                                                    }}
+                                                    disabled={loading}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            {url && (
+                                                <div className="relative w-full h-48 border rounded-md overflow-hidden bg-muted">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={url}
+                                                        alt={`Variant image ${index + 1}`}
+                                                        className="w-full h-full object-contain"
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.style.display = 'none';
+                                                            const parent = target.parentElement;
+                                                            if (parent && !parent.querySelector('.error-message')) {
+                                                                const errorDiv = document.createElement('div');
+                                                                errorDiv.className = 'error-message flex items-center justify-center h-full text-muted-foreground';
+                                                                errorDiv.innerHTML = '<ImageIcon className="h-12 w-12" /><span className="ml-2">Failed to load image</span>';
+                                                                parent.appendChild(errorDiv);
+                                                            }
+                                                        }}
+                                                        onLoad={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.style.display = 'block';
+                                                            const parent = target.parentElement;
+                                                            const errorDiv = parent?.querySelector('.error-message');
+                                                            if (errorDiv) {
+                                                                errorDiv.remove();
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {imageUrls.length === 0 && (
+                            <div className="text-center py-10 border-2 border-dashed rounded-lg">
+                                <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    No images yet. Click &quot;Add Image&quot; to get started.
+                                </p>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
