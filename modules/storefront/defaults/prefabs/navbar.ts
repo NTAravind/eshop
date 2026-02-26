@@ -1,4 +1,6 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../../binding-ast';
+import { migrateActionRef } from '../../actions/pipeline';
 
 /**
  * Schema-aware Navbar prefab
@@ -9,7 +11,7 @@ export const navbarPrefab: StorefrontNode = {
     id: 'Navbar_default',
     type: 'Container',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             width: '100%',
             padding: '1rem 2rem',
@@ -25,7 +27,7 @@ export const navbarPrefab: StorefrontNode = {
             id: 'navbar_content',
             type: 'Row',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -38,11 +40,11 @@ export const navbarPrefab: StorefrontNode = {
                 // Logo
                 {
                     id: 'navbar_logo',
-                    type: 'Link',
+                    type: 'NavItem',
                     props: {
                         href: '/',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.5rem',
                             fontWeight: '700',
@@ -55,8 +57,8 @@ export const navbarPrefab: StorefrontNode = {
                             id: 'navbar_logo_text',
                             type: 'Text',
                             props: {},
-                            bindings: {
-                                text: 'store.name',
+                            bindingMap: {
+                                text: migrateStringBinding('store.name'),
                             },
                         },
                     ],
@@ -66,7 +68,7 @@ export const navbarPrefab: StorefrontNode = {
                     id: 'navbar_links',
                     type: 'Row',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
                             gap: '2rem',
@@ -76,12 +78,12 @@ export const navbarPrefab: StorefrontNode = {
                     children: [
                         {
                             id: 'navbar_link_home',
-                            type: 'Link',
+                            type: 'NavItem',
                             props: {
                                 href: '/',
                                 text: 'Home',
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     color: 'var(--foreground)',
                                     textDecoration: 'none',
@@ -94,12 +96,12 @@ export const navbarPrefab: StorefrontNode = {
                         },
                         {
                             id: 'navbar_link_shop',
-                            type: 'Link',
+                            type: 'NavItem',
                             props: {
                                 href: '/collection',
                                 text: 'Shop',
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     color: 'var(--foreground)',
                                     textDecoration: 'none',
@@ -117,7 +119,7 @@ export const navbarPrefab: StorefrontNode = {
                     id: 'navbar_actions',
                     type: 'Row',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
                             gap: '1rem',
@@ -130,37 +132,41 @@ export const navbarPrefab: StorefrontNode = {
                             id: 'navbar_cart',
                             type: 'Container',
                             props: {},
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     position: 'relative',
                                     cursor: 'pointer',
                                 },
                             },
-                            actions: {
-                                onClick: {
+                            actionMap: {
+                                onClick: migrateActionRef({
                                     actionId: 'OPEN_CART_SIDEBAR',
                                     payload: {
                                         open: true,
                                     },
-                                },
+                                }),
                             },
                             children: [
                                 {
                                     id: 'navbar_cart_icon',
-                                    type: 'Icon',
+                                    type: 'Text',
                                     props: {
-                                        name: 'shopping-cart',
-                                        size: 24,
+                                        text: '🛒'
                                     },
+                                    styleOverrides: {
+                                        base: {
+                                            fontSize: '1.25rem',
+                                        },
+                                    }
                                 },
                                 {
                                     id: 'navbar_cart_badge',
                                     type: 'Text',
                                     props: {},
-                                    bindings: {
-                                        text: 'cart.itemCount',
+                                    bindingMap: {
+                                        text: migrateStringBinding('cart.itemCount'),
                                     },
-                                    styles: {
+                                    styleOverrides: {
                                         base: {
                                             position: 'absolute',
                                             top: '-8px',
@@ -184,10 +190,10 @@ export const navbarPrefab: StorefrontNode = {
                         // User menu button
                         {
                             id: 'navbar_user',
-                            type: 'UserMenuButton',
-                            props: {},
-                            bindings: {
-                                user: 'user',
+                            type: 'NavItem',
+                            props: {
+                                href: '/login',
+                                label: 'Account',
                             },
                         },
                     ],

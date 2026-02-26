@@ -24,6 +24,7 @@ import {
     generateNodeId,
 } from '@/shared/utils/tree';
 import { canInsert } from '@/modules/builder/constraints';
+import { migrateNodeToV2, hasV1Nodes } from '@/modules/storefront/migration/migrate-to-v2';
 
 // ==================== EDITOR STATE ====================
 
@@ -158,16 +159,25 @@ export const useEditorStore = create<EditorStore>()(
     immer((set, get) => ({
         ...initialState,
 
+
         // Document management
         loadDocument: (id, kind, key, tree) => {
+            let loadedTree = tree;
+
+            // Auto-migrate to V2 if needed
+            if (hasV1Nodes(loadedTree)) {
+                console.log('[Builder] Migrating document to V2 styles...');
+                loadedTree = migrateNodeToV2(loadedTree);
+            }
+
             set((state) => {
                 state.documentId = id;
                 state.documentKind = kind;
                 state.documentKey = key;
-                state.tree = tree;
-                state.isDirty = false;
+                state.tree = loadedTree;
+                state.isDirty = loadedTree !== tree; // Mark dirty if migrated
                 state.selection = { nodeId: null, path: [] };
-                state.history = [{ tree: cloneNode(tree), timestamp: Date.now() }];
+                state.history = [{ tree: cloneNode(loadedTree), timestamp: Date.now() }];
                 state.historyIndex = 0;
             });
         },

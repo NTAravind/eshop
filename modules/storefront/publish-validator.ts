@@ -148,11 +148,7 @@ function validateNode(
     }
 
     // V1 binding validation (count only)
-    if (node.bindings) {
-        for (const key of Object.keys(node.bindings)) {
-            stats.bindingCount++;
-        }
-    }
+    // V1 binding validation (count only) - REMOVED
 
     // V2 style token validation
     if (node.styleTokens && theme) {
@@ -179,9 +175,7 @@ function validateNode(
     }
 
     // V1 action validation (count only)
-    if (node.actions) {
-        stats.actionCount += Object.keys(node.actions).length;
-    }
+    // V1 action validation (count only) - REMOVED
 
     // Repeater checks
     if (node.type === 'Repeater') {

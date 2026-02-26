@@ -1,4 +1,5 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../../binding-ast';
 
 /**
  * Schema-aware OrderCard prefab
@@ -9,7 +10,7 @@ export const orderCardPrefab: StorefrontNode = {
     id: 'OrderCard_default',
     type: 'Container',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             padding: '1.5rem',
             border: '1px solid var(--border)',
@@ -24,7 +25,7 @@ export const orderCardPrefab: StorefrontNode = {
             id: 'order_card_header',
             type: 'Row',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -41,10 +42,10 @@ export const orderCardPrefab: StorefrontNode = {
                     props: {
                         level: 3,
                     },
-                    bindings: {
-                        text: 'order.orderNumber',
+                    bindingMap: {
+                        text: migrateStringBinding('order.orderNumber'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.125rem',
                             fontWeight: '600',
@@ -55,10 +56,10 @@ export const orderCardPrefab: StorefrontNode = {
                     id: 'order_card_date',
                     type: 'Text',
                     props: {},
-                    bindings: {
-                        text: 'order.createdAt',
+                    bindingMap: {
+                        text: migrateStringBinding('order.createdAt'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             color: 'var(--muted-foreground)',
                             fontSize: '0.875rem',
@@ -72,7 +73,7 @@ export const orderCardPrefab: StorefrontNode = {
             id: 'order_card_status',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     marginBottom: '1rem',
                 },
@@ -82,10 +83,10 @@ export const orderCardPrefab: StorefrontNode = {
                     id: 'order_status_badge',
                     type: 'Text',
                     props: {},
-                    bindings: {
-                        text: 'order.status',
+                    bindingMap: {
+                        text: migrateStringBinding('order.status'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'inline-block',
                             padding: '0.25rem 0.75rem',
@@ -104,10 +105,10 @@ export const orderCardPrefab: StorefrontNode = {
             id: 'order_card_items',
             type: 'Repeater',
             props: {},
-            bindings: {
-                items: 'order.items',
+            bindingMap: {
+                items: migrateStringBinding('order.items'),
             },
-            styles: {
+            styleOverrides: {
                 base: {
                     marginBottom: '1rem',
                 },
@@ -117,7 +118,7 @@ export const orderCardPrefab: StorefrontNode = {
                     id: 'order_item',
                     type: 'Row',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
                             gap: '1rem',
@@ -132,11 +133,11 @@ export const orderCardPrefab: StorefrontNode = {
                             props: {
                                 alt: 'Product',
                             },
-                            bindings: {
-                                src: 'item.variant.images[0].url',
-                                alt: 'item.product.name',
+                            bindingMap: {
+                                src: migrateStringBinding('item.variant.images[0].url'),
+                                alt: migrateStringBinding('item.product.name'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     width: '60px',
                                     height: '60px',
@@ -149,7 +150,7 @@ export const orderCardPrefab: StorefrontNode = {
                             id: 'order_item_details',
                             type: 'Column',
                             props: {},
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     flex: 1,
                                 },
@@ -159,10 +160,10 @@ export const orderCardPrefab: StorefrontNode = {
                                     id: 'order_item_name',
                                     type: 'Text',
                                     props: {},
-                                    bindings: {
-                                        text: 'item.product.name',
+                                    bindingMap: {
+                                        text: migrateStringBinding('item.product.name'),
                                     },
-                                    styles: {
+                                    styleOverrides: {
                                         base: {
                                             fontWeight: '500',
                                             marginBottom: '0.25rem',
@@ -173,10 +174,10 @@ export const orderCardPrefab: StorefrontNode = {
                                     id: 'order_item_quantity',
                                     type: 'Text',
                                     props: {},
-                                    bindings: {
-                                        text: 'item.quantity',
+                                    bindingMap: {
+                                        text: migrateStringBinding('item.quantity'),
                                     },
-                                    styles: {
+                                    styleOverrides: {
                                         base: {
                                             fontSize: '0.875rem',
                                             color: 'var(--muted-foreground)',
@@ -189,11 +190,11 @@ export const orderCardPrefab: StorefrontNode = {
                             id: 'order_item_price',
                             type: 'PriceDisplay',
                             props: {},
-                            bindings: {
-                                price: 'item.totalPrice',
-                                currency: 'store.currency',
+                            bindingMap: {
+                                price: migrateStringBinding('item.totalPrice'),
+                                currency: migrateStringBinding('store.currency'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontWeight: '600',
                                 },
@@ -208,7 +209,7 @@ export const orderCardPrefab: StorefrontNode = {
             id: 'order_card_total',
             type: 'Row',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -225,7 +226,7 @@ export const orderCardPrefab: StorefrontNode = {
                     props: {
                         text: 'Total',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.125rem',
                             fontWeight: '600',
@@ -236,11 +237,11 @@ export const orderCardPrefab: StorefrontNode = {
                     id: 'order_total_value',
                     type: 'PriceDisplay',
                     props: {},
-                    bindings: {
-                        price: 'order.totalAmount',
-                        currency: 'store.currency',
+                    bindingMap: {
+                        price: migrateStringBinding('order.totalAmount'),
+                        currency: migrateStringBinding('store.currency'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.25rem',
                             fontWeight: '700',

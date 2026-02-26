@@ -1,4 +1,5 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
 
 /**
  * Default global layout with header and footer
@@ -9,7 +10,7 @@ export const defaultGlobalLayout: StorefrontNode = {
     props: {
         className: 'min-h-screen flex flex-col',
     },
-    styles: {
+    styleOverrides: {
         base: {
             display: 'flex',
             flexDirection: 'column',
@@ -37,7 +38,7 @@ export const defaultGlobalLayout: StorefrontNode = {
             props: {
                 className: 'flex-1',
             },
-            styles: {
+            styleOverrides: {
                 base: {
                     flex: 1,
                 },
@@ -56,8 +57,8 @@ export const defaultGlobalLayout: StorefrontNode = {
             props: {
                 copyright: '© 2024 Your Store. All rights reserved.',
             },
-            bindings: {
-                storeName: 'store.name',
+            bindingMap: {
+                storeName: migrateStringBinding('store.name'),
             },
         },
         {

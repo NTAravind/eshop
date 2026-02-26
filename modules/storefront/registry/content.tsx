@@ -317,7 +317,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { text: 'Lorem ipsum dolor sit amet' },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
             children: [],
         },
     });
@@ -335,7 +335,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { text: 'Heading', level: 2 },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
             children: [],
         },
     });
@@ -357,7 +357,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { width: 400, height: 400 },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -375,7 +375,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { href: '#', text: 'Link Text' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -395,7 +395,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { text: 'Button' },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
             children: [],
         },
     });
@@ -413,7 +413,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { text: 'Badge' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -431,7 +431,7 @@ export function registerContentComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { name: 'circle', size: 24 },
-            styles: {},
+            styleOverrides: {},
         },
     });
 }

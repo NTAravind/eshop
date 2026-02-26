@@ -209,10 +209,10 @@ async function ensureDefaultStorefrontContent(storeId: string) {
         { kind: StorefrontDocKind.PAGE, key: "PROFILE", tree: defaultProfilePage },
         { kind: StorefrontDocKind.PAGE, key: "LOGIN", tree: defaultLoginPage },
         { kind: StorefrontDocKind.TEMPLATE, key: "PDP:default", tree: defaultPdpTemplate },
-        { kind: StorefrontDocKind.PREFAB, key: "ProductCard", tree: productCardPrefab },
-        { kind: StorefrontDocKind.PREFAB, key: "Navbar", tree: navbarPrefab },
-        { kind: StorefrontDocKind.PREFAB, key: "CartSidebar", tree: cartSidebarPrefab },
-        { kind: StorefrontDocKind.PREFAB, key: "OrderCard", tree: orderCardPrefab },
+        { kind: StorefrontDocKind.PREFAB, key: "ProductCard", tree: productCardPrefab, meta: { prefabType: 'productcard' } },
+        { kind: StorefrontDocKind.PREFAB, key: "Navbar", tree: navbarPrefab, meta: { prefabType: 'navbar' } },
+        { kind: StorefrontDocKind.PREFAB, key: "CartSidebar", tree: cartSidebarPrefab, meta: { prefabType: 'cartsidebar' } },
+        { kind: StorefrontDocKind.PREFAB, key: "OrderCard", tree: orderCardPrefab, meta: { prefabType: 'ordercard' } },
     ];
 
     const statuses = [StorefrontDocStatus.DRAFT, StorefrontDocStatus.PUBLISHED];
@@ -230,6 +230,7 @@ async function ensureDefaultStorefrontContent(storeId: string) {
                 },
                 update: {
                     tree: doc.tree as any,
+                    meta: (doc as any).meta ? ((doc as any).meta as any) : undefined,
                 },
                 create: {
                     storeId,
@@ -237,6 +238,7 @@ async function ensureDefaultStorefrontContent(storeId: string) {
                     key: doc.key,
                     status,
                     tree: doc.tree as any,
+                    meta: (doc as any).meta ? ((doc as any).meta as any) : undefined,
                 },
             });
         }

@@ -28,46 +28,104 @@ import { Trash2 } from 'lucide-react';
 interface ProductCardProps extends BaseComponentProps {
     product?: ProductContext;
     href?: string;
+    name?: string;
+    price?: number;
+    originalPrice?: number;
+    imageUrl?: string;
+    description?: string;
+    badge?: string;
+    ctaLabel?: string;
 }
 
-function ProductCard({ product, href, style, className, onClick, ...rest }: ProductCardProps) {
-    const { context } = useRuntimeContext();
+function ProductCard({
+    product,
+    href,
+    name,
+    price,
+    originalPrice,
+    imageUrl,
+    description,
+    badge,
+    ctaLabel = 'View product',
+    style,
+    className,
+    onClick,
+    ...rest
+}: ProductCardProps) {
+    const { context, setUIState } = useRuntimeContext();
     const slug = context?.store?.slug;
 
-    if (!product) {
-        return <div style={{ padding: '1rem', ...style }}>[No product]</div>;
-    }
+    // Use product context as primary source, props as overrides/fallbacks
+    const resolvedProduct = product || {
+        id: 'sample-product',
+        name: name || 'Sample product',
+        description: description || 'This is a sample product description.',
+        images: imageUrl ? [{ url: imageUrl, alt: name || 'Sample product', position: 0 }] : [],
+        variants: [{
+            id: 'sample-variant',
+            sku: 'SAMPLE',
+            price: price ?? 1999,
+            stock: 10,
+            customData: {},
+            images: imageUrl ? [{ url: imageUrl, alt: name || 'Sample product', position: 0 }] : [],
+            isActive: true,
+        }],
+        customData: {},
+        categoryId: '',
+    } as ProductContext;
 
-    const defaultVariant = product.variants[0];
-    const imageObj = product.images[0] ?? defaultVariant?.images[0];
-    const imageUrl = imageObj?.url ?? product.image;
-    const imageAlt = imageObj?.alt ?? product.name;
+    const defaultVariant = resolvedProduct.variants[0];
+    const imageObj = resolvedProduct.images[0] ?? defaultVariant?.images[0];
+    const finalImageUrl = imageUrl || imageObj?.url || resolvedProduct.image;
+    const finalImageAlt = imageObj?.alt || name || resolvedProduct.name;
+    const finalName = name || resolvedProduct.name;
+    const finalDescription = description || resolvedProduct.description;
+    const finalPrice = price ?? defaultVariant?.price;
+    const finalOriginalPrice = originalPrice;
 
-    const card = (
+    const cardBody = (
         <div
-            style={{
-                ...style,
-            }}
+            style={style}
             className={`group rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden ${className || ''}`}
             onClick={onClick}
             {...rest}
         >
             <div className="relative aspect-square bg-muted overflow-hidden">
-                {imageUrl && (
+                {finalImageUrl && (
                     <NextImage
-                        src={imageUrl}
-                        alt={imageAlt || product.name}
+                        src={finalImageUrl}
+                        alt={finalImageAlt || finalName}
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                 )}
+                {badge && (
+                    <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full shadow-sm">
+                        {badge}
+                    </span>
+                )}
             </div>
             <div className="p-4 space-y-2">
-                <h3 className="font-semibold truncate">{product.name}</h3>
-                {defaultVariant && (
-                    <div className="text-primary font-bold">
-                        <PriceDisplay price={defaultVariant.price} currency={context?.store?.currency} />
+                <h3 className="font-semibold truncate">{finalName}</h3>
+                {finalDescription && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">{finalDescription}</p>
+                )}
+                {finalPrice !== undefined && (
+                    <div className="flex items-center gap-2 text-primary font-bold">
+                        <PriceDisplay price={finalPrice} originalPrice={finalOriginalPrice} currency={context?.store?.currency} />
                     </div>
+                )}
+                {ctaLabel && (
+                    <button
+                        className="mt-2 inline-flex items-center justify-center rounded-md border px-3 py-2 text-sm font-medium transition-colors hover:bg-primary hover:text-primary-foreground"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setUIState?.('cartSidebarOpen', true);
+                        }}
+                        type="button"
+                    >
+                        {ctaLabel}
+                    </button>
                 )}
             </div>
         </div>
@@ -75,17 +133,22 @@ function ProductCard({ product, href, style, className, onClick, ...rest }: Prod
 
     // Resolve href
     let finalHref = href;
-    if (!finalHref && slug) {
-        finalHref = `/store/${slug}/products/${product.id}`;
-    } else if (finalHref && slug && finalHref.startsWith('/') && !finalHref.startsWith('/store/')) {
+    if (!finalHref && resolvedProduct.id) {
+        finalHref = `/products/${resolvedProduct.id}`;
+    }
+    if (finalHref && slug && finalHref.startsWith('/') && !finalHref.startsWith('/store/')) {
         finalHref = `/store/${slug}${finalHref}`;
     }
 
     if (finalHref) {
-        return <NextLink href={finalHref}>{card}</NextLink>;
+        return (
+            <NextLink href={finalHref} className="block">
+                {cardBody}
+            </NextLink>
+        );
     }
 
-    return card;
+    return cardBody;
 }
 
 // ==================== ProductGrid ====================
@@ -96,6 +159,8 @@ interface ProductGridProps extends BaseComponentProps {
     basePath?: string;
     /** Filter by product schema ID */
     productSchemaId?: string;
+    /** Specific prefab ID to use for the cards */
+    cardPrefabKey?: string;
     /** Mode for selecting card prefab: 'perSchema' uses schema-specific cards, 'fixed' uses default */
     cardPrefabKeyMode?: 'perSchema' | 'fixed';
 }
@@ -106,6 +171,7 @@ function ProductGrid({
     columns: _columns = 4,
     /* eslint-enable @typescript-eslint/no-unused-vars */
     cardPrefabKeyMode: _cardPrefabKeyMode = 'fixed',
+    cardPrefabKey,
     limit,
     basePath,
     productSchemaId,
@@ -133,15 +199,18 @@ function ProductGrid({
     const displayProducts = limit ? filteredProducts.slice(0, limit) : filteredProducts;
 
     const prefabs = context?.prefabs || {};
-    const defaultCardKey = 'ProductCard';
+    const defaultCardKey = 'ProductCard_default';
     const defaultCardPrefab = prefabs[defaultCardKey] || productCardPrefab;
 
     const resolveCardPrefabKey = (product: ProductContext) => {
         if (_cardPrefabKeyMode === 'perSchema' && product.productSchemaId) {
-            const schemaKey = `ProductCard:${product.productSchemaId}`;
+            const schemaKey = `ProductCard_default:${product.productSchemaId}`;
             if (prefabs[schemaKey]) {
                 return schemaKey;
             }
+        }
+        if (_cardPrefabKeyMode === 'fixed' && cardPrefabKey && prefabs[cardPrefabKey]) {
+            return cardPrefabKey;
         }
         return defaultCardKey;
     };
@@ -163,15 +232,19 @@ function ProductGrid({
 
                 if (prefabTree) {
                     const defaultVariant = product.variants?.[0] || (product as { defaultVariant?: VariantContext }).defaultVariant;
+                    const price = defaultVariant?.price ?? (product as any).price ?? 0;
                     const scopedProduct = {
                         ...product,
                         defaultVariant,
+                        price,
                         href: `${effectiveBasePath}/${product.id}`,
                     };
 
+                    const scope: any = { product: scopedProduct, item: scopedProduct, index };
+
                     return (
                         <div key={product.id} style={{ display: 'contents' }}>
-                            <Renderer tree={prefabTree} scope={{ item: scopedProduct, index }} />
+                            <Renderer tree={prefabTree} scope={scope} />
                         </div>
                     );
                 }
@@ -325,6 +398,34 @@ function AddToCartButton({
     );
 }
 
+// ==================== QuantitySelector ====================
+interface QuantitySelectorProps extends BaseComponentProps {
+    value?: number;
+    itemId?: string;
+    onChange?: (quantity: number) => void;
+}
+
+function QuantitySelector({ value = 1, onChange, itemId, style, className, ...rest }: QuantitySelectorProps) {
+    const updateQty = (delta: number) => {
+        const nextQty = Math.max(1, value + delta);
+        if (onChange) {
+            onChange(nextQty);
+        }
+    };
+    return (
+        <div
+            data-item-id={itemId}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.25rem 0.4rem', backgroundColor: 'var(--background)', ...style }}
+            className={className}
+            {...rest}
+        >
+            <button type="button" aria-label="Decrease quantity" onClick={() => updateQty(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--foreground)' }}>-</button>
+            <span style={{ minWidth: '22px', textAlign: 'center', fontWeight: 600 }}>{value}</span>
+            <button type="button" aria-label="Increase quantity" onClick={() => updateQty(1)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--foreground)' }}>+</button>
+        </div>
+    );
+}
+
 
 
 // ==================== BuyNowButton ====================
@@ -394,65 +495,98 @@ function CartItemCard({
 
     if (!effectiveItem) return null;
 
-    const imageUrl = effectiveItem.product.images?.[0]?.url || effectiveItem.product.image || effectiveItem.variant?.images?.[0]?.url;
+    const imageUrl = effectiveItem.variant?.images?.[0]?.url || effectiveItem.product.images?.[0]?.url || effectiveItem.product.image;
     const variantLabel = effectiveItem.variant?.sku || effectiveItem.variantId;
+
+    const updateQty = (delta: number) => {
+        const nextQty = Math.max(1, (effectiveItem.quantity || 1) + delta);
+        dispatch({ actionId: 'UPDATE_QUANTITY', payload: { variantId: effectiveItem.variantId, quantity: nextQty } }, context);
+    };
+
+    const removeItem = () => {
+        dispatch({ actionId: 'REMOVE_FROM_CART', payload: { variantId: effectiveItem.variantId } }, context);
+    };
 
     return (
         <div
             style={{
                 display: 'grid',
-                gridTemplateColumns: showImage ? '72px 1fr' : '1fr',
-                gap: '0.75rem',
-                padding: '0.75rem',
+                gridTemplateColumns: showImage ? '104px 1fr 110px' : '1fr 110px',
+                gap: '1rem',
+                padding: '1rem',
+                borderRadius: '1rem',
+                backgroundColor: 'var(--card)',
                 border: '1px solid var(--border)',
-                borderRadius: '0.75rem',
-                backgroundColor: 'var(--background)',
+                boxShadow: '0 14px 38px rgba(0,0,0,0.08)',
+                alignItems: 'center',
                 ...style,
             }}
             className={className}
             {...rest}
         >
             {showImage && (
-                <div style={{ width: '72px', height: '72px', backgroundColor: 'var(--muted)', borderRadius: '0.5rem', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ width: '104px', height: '104px', borderRadius: '0.8rem', overflow: 'hidden', backgroundColor: 'var(--muted)', position: 'relative' }}>
                     {imageUrl ? (
-                        <NextImage src={imageUrl} alt={effectiveItem.product.name} fill style={{ objectFit: 'cover' }} />
+                        <NextImage src={imageUrl} alt={effectiveItem.product.name || 'Cart item'} fill style={{ objectFit: 'cover' }} />
                     ) : (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>
                             No image
                         </div>
                     )}
                 </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
-                    <div style={{ minWidth: 0 }}>
-                        <p style={{ fontWeight: 600, lineHeight: 1.2 }}>{effectiveItem.product.name}</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
+                        <p style={{ fontWeight: 700, fontSize: '1rem', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {effectiveItem.product.name || 'Untitled item'}
+                        </p>
                         {showVariant && variantLabel && (
-                            <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{variantLabel}</p>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>{variantLabel}</p>
                         )}
                     </div>
                     {showRemove && (
                         <button
                             aria-label="Remove item"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--muted-foreground)' }}
-                            onClick={() => dispatch({
-                                actionId: 'REMOVE_FROM_CART',
-                                payload: { variantId: effectiveItem.variantId }
-                            }, context)}
+                            onClick={removeItem}
                         >
                             <Trash2 size={16} />
                         </button>
                     )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                     {showQuantity && (
-                        <span style={{ color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>Qty: {effectiveItem.quantity}</span>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.25rem 0.4rem', backgroundColor: 'var(--background)' }}>
+                            <button
+                                type="button"
+                                aria-label="Decrease quantity"
+                                onClick={() => updateQty(-1)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--foreground)' }}
+                            >
+                                -
+                            </button>
+                            <span style={{ minWidth: '22px', textAlign: 'center', fontWeight: 600 }}>{effectiveItem.quantity}</span>
+                            <button
+                                type="button"
+                                aria-label="Increase quantity"
+                                onClick={() => updateQty(1)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.1rem', color: 'var(--foreground)' }}
+                            >
+                                +
+                            </button>
+                        </div>
                     )}
-                    <span style={{ fontWeight: 600 }}>{formatCurrency(effectiveItem.lineTotal, effectiveCurrency)}</span>
                 </div>
             </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+                <PriceDisplay price={effectiveItem.lineTotal} currency={effectiveCurrency} />
+            </div>
         </div>
-    )
+    );
 }
 
 // ==================== CartSidebar ====================
@@ -464,6 +598,7 @@ interface CartSidebarProps extends BaseComponentProps {
     currency?: string;
     onClose?: () => void;
     checkoutButtonText?: string;
+    children?: React.ReactNode;
 }
 
 export function CartSidebar({
@@ -474,6 +609,7 @@ export function CartSidebar({
     currency,
     onClose,
     checkoutButtonText = 'Checkout',
+    children,
     style,
     className,
     ...rest
@@ -499,6 +635,8 @@ export function CartSidebar({
 
     const checkoutLink = slug ? `/store/${slug}/checkout` : '/checkout';
 
+    const hasChildren = React.Children.count(children) > 0;
+
     return (
         <Sheet open={isOpen} onOpenChange={handleOpenChange}>
             <SheetContent
@@ -506,66 +644,72 @@ export function CartSidebar({
                 className={className}
                 {...rest}
             >
-                <SheetHeader>
-                    <SheetTitle>Your Cart</SheetTitle>
-                </SheetHeader>
+                {hasChildren ? (
+                    children
+                ) : (
+                    <>
+                        <SheetHeader>
+                            <SheetTitle>Your Cart</SheetTitle>
+                        </SheetHeader>
 
-                <div style={{ flex: 1, overflow: 'auto', padding: '1rem 0' }} className="h-full flex flex-col">
-                    <div className="flex-1 overflow-y-auto min-h-0">
-                        {cartItems.length === 0 ? (
-                            <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem' }}>Your cart is empty</p>
-                        ) : (
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '0.75rem',
-                                }}
-                            >
-                                {cartItems.map((item, index) => {
-                                    // Resolve prefab (allow overriding via prefabs context)
-                                    const prefabs = context?.prefabs || {};
-                                    const prefabKey = 'CartItemCard';
-                                    const prefabTree = prefabs[prefabKey] || cartItemCardPrefab;
+                        <div style={{ flex: 1, overflow: 'auto', padding: '1rem 0' }} className="h-full flex flex-col">
+                            <div className="flex-1 overflow-y-auto min-h-0">
+                                {cartItems.length === 0 ? (
+                                    <p style={{ color: 'var(--muted-foreground)', textAlign: 'center', marginTop: '2rem' }}>Your cart is empty</p>
+                                ) : (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '0.75rem',
+                                        }}
+                                    >
+                                        {cartItems.map((item, index) => {
+                                            // Resolve prefab (allow overriding via prefabs context)
+                                            const prefabs = context?.prefabs || {};
+                                            const prefabKey = 'CartItemCard';
+                                            const prefabTree = prefabs[prefabKey] || cartItemCardPrefab;
 
-                                    if (prefabTree) {
-                                        return (
-                                            <div key={item.id} style={{ display: 'contents' }}>
-                                                <Renderer tree={prefabTree} scope={{ item, index }} />
-                                            </div>
-                                        );
-                                    }
+                                            if (prefabTree) {
+                                                return (
+                                                    <div key={item.id} style={{ display: 'contents' }}>
+                                                        <Renderer tree={prefabTree} scope={{ item, index }} />
+                                                    </div>
+                                                );
+                                            }
 
-                                    return (
-                                        <CartItemCard
-                                            key={item.id}
-                                            item={item}
-                                            currency={effectiveCurrency}
-                                        />
-                                    );
-                                })}
+                                            return (
+                                                <CartItemCard
+                                                    key={item.id}
+                                                    item={item}
+                                                    currency={effectiveCurrency}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
 
-                    {cartItems.length > 0 && (
-                        <div style={{ padding: '1rem 0', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                <span>Subtotal:</span>
-                                <span>{formatCurrency(cartSubtotal, effectiveCurrency)}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '1.125rem' }}>
-                                <span>Total:</span>
-                                <span>{formatCurrency(cartTotal, effectiveCurrency)}</span>
-                            </div>
-                            <NextLink href={checkoutLink} onClick={() => handleOpenChange(false)} style={{ display: 'block', marginTop: '1rem' }}>
-                                <button style={{ width: '100%', padding: '0.75rem', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', border: 'none', borderRadius: 'var(--radius)', fontWeight: 500, cursor: 'pointer' }}>
-                                    {checkoutButtonText}
-                                </button>
-                            </NextLink>
+                            {cartItems.length > 0 && (
+                                <div style={{ padding: '1rem 0', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span>Subtotal:</span>
+                                        <span>{formatCurrency(cartSubtotal, effectiveCurrency)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, fontSize: '1.125rem' }}>
+                                        <span>Total:</span>
+                                        <span>{formatCurrency(cartTotal, effectiveCurrency)}</span>
+                                    </div>
+                                    <NextLink href={checkoutLink} onClick={() => handleOpenChange(false)} style={{ display: 'block', marginTop: '1rem' }}>
+                                        <button style={{ width: '100%', padding: '0.75rem', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)', border: 'none', borderRadius: 'var(--radius)', fontWeight: 500, cursor: 'pointer' }}>
+                                            {checkoutButtonText}
+                                        </button>
+                                    </NextLink>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </>
+                )}
             </SheetContent>
         </Sheet >
     );
@@ -578,11 +722,36 @@ export function registerCommerceComponents() {
         displayName: 'Product Card',
         category: 'commerce',
         icon: 'Package',
-        propsSchema: {},
+        propsSchema: {
+            href: { type: 'text', label: 'Link Override' },
+            name: { type: 'text', label: 'Title' },
+            description: { type: 'textarea', label: 'Description' },
+            imageUrl: { type: 'image', label: 'Image' },
+            price: { type: 'number', label: 'Price (cents)', min: 0 },
+            originalPrice: { type: 'number', label: 'Original Price (cents)', min: 0 },
+            badge: { type: 'text', label: 'Badge' },
+            ctaLabel: { type: 'text', label: 'Button Label', defaultValue: 'View product' },
+        },
         constraints: { canHaveChildren: false },
         defaults: {
-            props: {},
-            styles: { base: { width: '100%', maxWidth: '300px' } },
+            styleOverrides: {
+                base: {
+                    width: '280px',
+                    maxWidth: '320px',
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                }
+            },
+            props: {
+                name: 'Sample product',
+                description: 'A short description for preview.',
+                price: 1999,
+                originalPrice: 2499,
+                imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=600&q=80',
+                badge: 'Bestseller',
+                ctaLabel: 'View product',
+            },
         },
     });
 
@@ -605,12 +774,13 @@ export function registerCommerceComponents() {
                 ],
                 defaultValue: 'fixed',
             },
+            cardPrefabKey: { type: 'prefab', prefabType: 'productcard', label: 'Custom Card Prefab Key' },
             basePath: { type: 'text', label: 'Base Product Link Path' },
         },
         constraints: { canHaveChildren: false },
         defaults: {
             props: { columns: 4, limit: 8, cardPrefabKeyMode: 'fixed' },
-            styles: { base: { margin: '2rem 0' } },
+            styleOverrides: { base: { margin: '2rem 0' } },
         },
     });
 
@@ -623,7 +793,7 @@ export function registerCommerceComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { price: 99.99, originalPrice: 129.99 },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -636,7 +806,7 @@ export function registerCommerceComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -646,10 +816,11 @@ export function registerCommerceComponents() {
         category: 'commerce',
         icon: 'ShoppingCart',
         propsSchema: {},
+        actionSlots: ['onClick'],
         constraints: { canHaveChildren: false },
         defaults: {
             props: { text: 'Add to Cart' },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
         },
     });
 
@@ -659,10 +830,27 @@ export function registerCommerceComponents() {
         category: 'commerce',
         icon: 'CreditCard',
         propsSchema: {},
+        actionSlots: ['onClick'],
         constraints: { canHaveChildren: false },
         defaults: {
             props: { text: 'Buy Now' },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
+        },
+    });
+
+    registerComponent('QuantitySelector', QuantitySelector as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
+        type: 'QuantitySelector',
+        displayName: 'Quantity Selector',
+        category: 'commerce',
+        icon: 'Plus',
+        propsSchema: {
+            value: { type: 'number', label: 'Value', defaultValue: 1 },
+        },
+        actionSlots: ['onChange'],
+        constraints: { canHaveChildren: false },
+        defaults: {
+            props: {},
+            styleOverrides: {},
         },
     });
 
@@ -675,7 +863,7 @@ export function registerCommerceComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -685,13 +873,14 @@ export function registerCommerceComponents() {
         category: 'commerce',
         icon: 'ShoppingCart',
         propsSchema: {},
-        constraints: { canHaveChildren: false },
+        constraints: { canHaveChildren: true },
         controls: {
             checkoutButtonText: { type: 'text', label: 'Checkout Button Text', defaultValue: 'Checkout' },
         },
         defaults: {
             props: { isOpen: false, checkoutButtonText: 'Checkout' },
-            styles: {},
+            styleOverrides: {},
+            children: [],
         },
     });
 }

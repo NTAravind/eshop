@@ -6,6 +6,7 @@
  */
 
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import type { ActionRef, ActionPipeline, ActionResult, RuntimeContext, BindingContext } from '@/types/storefront-builder';
 import { resolvePayloadBindings } from '../bindings';
 import { validatePayload, type RegisteredActionID } from './registry';
@@ -60,10 +61,21 @@ export function useActionDispatcher(options: UseActionDispatcherOptions) {
 
         // Handle based on action type
         switch (actionId) {
-            // Client-only actions
             case 'NAVIGATE': {
-                const to = validPayload.to as string;
+                let to = validPayload.to as string;
                 const replace = validPayload.replace as boolean;
+
+                const slug = (context as any)?.store?.slug;
+                if (to && slug && !to.startsWith('http') && !to.startsWith('#')) {
+                    if (to.startsWith('/')) {
+                        if (!to.startsWith(`/store/${slug}`)) {
+                            to = `/store/${slug}${to}`;
+                        }
+                    } else {
+                        to = `/store/${slug}/${to}`;
+                    }
+                }
+
                 if (replace) {
                     router.replace(to);
                 } else {
@@ -79,7 +91,8 @@ export function useActionDispatcher(options: UseActionDispatcherOptions) {
                 return { success: true, data: { key, value } };
             }
 
-            case 'OPEN_CART_SIDEBAR': {
+            case 'OPEN_CART_SIDEBAR':
+            case 'opencartsidebar': {
                 const open = validPayload.open as boolean;
                 onUIStateChange?.('cartSidebarOpen', open);
                 return { success: true, data: { cartSidebarOpen: open } };
@@ -158,6 +171,17 @@ export function useActionDispatcher(options: UseActionDispatcherOptions) {
                     validPayload as { formType: 'checkout' | 'login' | 'signup' | 'profile' | 'contact'; data?: Record<string, unknown> },
                     { storeId, userId }
                 );
+            }
+
+            case 'OAUTH_LOGIN': {
+                const provider = validPayload.provider as 'google' | 'instagram';
+                const callbackUrl = (validPayload.callbackUrl as string) || '/';
+                try {
+                    await signIn(provider, { callbackUrl });
+                    return { success: true, data: { provider } };
+                } catch (error) {
+                    return { success: false, error: error instanceof Error ? error.message : 'Sign in failed' };
+                }
             }
 
             default:

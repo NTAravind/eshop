@@ -184,7 +184,7 @@ function groupNodes(store: ReturnType<typeof useEditorStore.getState>) {
         id: containerId,
         type: 'box', // Default container
         props: {},
-        styles: {
+        styleOverrides: {
             base: {
                 display: 'flex',
                 flexDirection: 'column',

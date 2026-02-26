@@ -60,12 +60,14 @@ export function mapProductToContext(product: ProductWithRelations): ProductConte
         id: product.id,
         name: product.name,
         description: product.description ?? undefined,
+        href: `/products/${product.id}`,
         image: product.image,
         productSchemaId: product.productSchemaId ?? undefined,
         categoryId: product.categoryId ?? undefined,
         customData: product.customData as Record<string, unknown> | undefined,
         images: productImages.length > 0 ? productImages : (variants[0]?.images ?? []),
         variants,
+        defaultVariant: variants.find((v) => v.isActive) || variants[0],
     };
 }
 

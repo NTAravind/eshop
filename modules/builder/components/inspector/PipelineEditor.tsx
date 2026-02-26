@@ -38,6 +38,7 @@ import { BindingExprNode } from './BindingExprNode';
 import { actionRegistry } from '@/modules/storefront/actions/registry';
 import { createPipeline, createSimplePipeline } from '@/modules/storefront/actions/pipeline';
 import { findNodeById, generateNodeId } from '@/shared/utils/tree';
+import { getRegistry } from '@/modules/storefront/registry';
 import type {
     ActionPipeline,
     ActionStep as PipelineStep,
@@ -61,6 +62,7 @@ export function PipelineEditor({ nodeId }: PipelineEditorProps) {
         if (!node) return null;
         return {
             id: node.id,
+            type: node.type,
             actionMap: node.actionMap
         };
     }, [tree, nodeId]);
@@ -68,14 +70,27 @@ export function PipelineEditor({ nodeId }: PipelineEditorProps) {
 
     const node = nodeData;
 
-    // Local state for selected event (controlled tab/select)
-    const [selectedEvent, setSelectedEvent] = useState<string>('onClick');
+    // Local state for selected event
+    const [selectedEvent, setSelectedEvent] = useState<string>('');
 
     if (!node) return <div className="p-4 text-sm text-muted-foreground">Select a node to edit actions.</div>;
+
+    // Get available events dynamically from registry
+    const registry = (getRegistry as any)();
+    const componentDef = registry.components[node.type];
+    const availableEvents = componentDef?.actionSlots || componentDef?.eventSlots || ['onClick'];
+
+    // Auto-select first event if none selected or selected is invalid
+    if (!selectedEvent || !availableEvents.includes(selectedEvent)) {
+        if (availableEvents.length > 0) {
+            setSelectedEvent(availableEvents[0]);
+        }
+    }
 
     const pipeline = node.actionMap?.[selectedEvent] || createPipeline(generateNodeId(), []);
 
     const handleUpdatePipeline = useCallback((updates: Partial<ActionPipeline>) => {
+        if (!selectedEvent) return;
         const newPipeline = { ...pipeline, ...updates };
         const newActionMap = { ...node?.actionMap, [selectedEvent]: newPipeline };
         updateNode(nodeId, { actionMap: newActionMap });
@@ -131,7 +146,7 @@ export function PipelineEditor({ nodeId }: PipelineEditorProps) {
                             <SelectValue placeholder="Event" />
                         </SelectTrigger>
                         <SelectContent>
-                            {EVENTS.map(evt => (
+                            {availableEvents.map((evt: string) => (
                                 <SelectItem key={evt} value={evt} className="text-xs">
                                     {evt}
                                 </SelectItem>
@@ -321,34 +336,39 @@ function PipelineStepCard({ step, index, onUpdate, onRemove }: PipelineStepCardP
 
             {/* Payload Config */}
             <div className="p-3 space-y-3">
-                {Object.entries(definition?.schema?.properties || {}).map(([key, schema]: [string, any]) => {
+                {Object.entries(definition?.payloadSchema?.shape || {}).map(([key, schema]: [string, any]) => {
                     const currentBinding = step.payloadBindings?.[key];
                     const staticValue = step.payload?.[key];
+                    const isBindable = definition?.bindablePayload?.includes(key);
 
                     return (
                         <div key={key} className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs font-medium text-muted-foreground">{schema.title || key}</Label>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className={`h-5 px-1.5 text-[10px] ${currentBinding ? 'bg-indigo-50 text-indigo-600' : 'text-muted-foreground'}`}
-                                    onClick={() => {
-                                        if (currentBinding) {
-                                            // Remove binding
-                                            const newBindings = { ...step.payloadBindings };
-                                            delete newBindings[key];
-                                            onUpdate({ payloadBindings: newBindings });
-                                        } else {
-                                            // Add binding
-                                            const newBindings = { ...step.payloadBindings };
-                                            newBindings[key] = { kind: 'path', root: 'product', segments: ['title'] };
-                                            onUpdate({ payloadBindings: newBindings });
-                                        }
-                                    }}
-                                >
-                                    {currentBinding ? 'Bound' : 'Bind'}
-                                </Button>
+                                <Label className="text-xs font-medium text-muted-foreground capitalize">{key}</Label>
+                                {isBindable && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`h-5 px-1.5 text-[10px] ${currentBinding ? 'bg-indigo-50 text-indigo-600' : 'text-muted-foreground'}`}
+                                        onClick={() => {
+                                            if (currentBinding) {
+                                                // Remove binding
+                                                const newBindings = { ...step.payloadBindings };
+                                                delete newBindings[key];
+                                                onUpdate({ payloadBindings: newBindings });
+                                            } else {
+                                                // Add binding - determine root based on common patterns or default to product
+                                                const newBindings = { ...step.payloadBindings };
+                                                const root = key === 'variantId' ? 'product' : 'uiState';
+                                                const segments = key === 'variantId' ? ['defaultVariant', 'id'] : [key];
+                                                newBindings[key] = { kind: 'path', root, segments };
+                                                onUpdate({ payloadBindings: newBindings });
+                                            }
+                                        }}
+                                    >
+                                        {currentBinding ? 'Bound' : 'Bind'}
+                                    </Button>
+                                )}
                             </div>
 
                             {currentBinding ? (
@@ -363,11 +383,19 @@ function PipelineStepCard({ step, index, onUpdate, onRemove }: PipelineStepCardP
                             ) : (
                                 <Input
                                     className="h-7 text-xs"
-                                    placeholder={String(schema.type || 'text')}
+                                    placeholder={schema._def.typeName === 'ZodNumber' ? 'Number' : schema._def.typeName === 'ZodBoolean' ? 'Boolean' : 'Text'}
                                     value={String(staticValue ?? '')}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                         const newPayload = { ...step.payload };
-                                        newPayload[key] = e.target.value;
+                                        const val = e.target.value;
+                                        // Attempt to convert to number or boolean if applicable
+                                        if (schema._def.typeName === 'ZodNumber') {
+                                            newPayload[key] = val === '' ? undefined : Number(val);
+                                        } else if (schema._def.typeName === 'ZodBoolean') {
+                                            newPayload[key] = val === 'true';
+                                        } else {
+                                            newPayload[key] = val;
+                                        }
                                         onUpdate({ payload: newPayload });
                                     }}
                                 />

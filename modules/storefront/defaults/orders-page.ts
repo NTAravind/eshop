@@ -1,4 +1,5 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
 
 /**
  * Default orders page
@@ -7,7 +8,7 @@ export const defaultOrdersPage: StorefrontNode = {
     id: 'page_orders',
     type: 'Container',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             padding: '2rem',
             maxWidth: '1000px',
@@ -22,7 +23,7 @@ export const defaultOrdersPage: StorefrontNode = {
                 level: 1,
                 text: 'My Orders',
             },
-            styles: {
+            styleOverrides: {
                 base: {
                     marginBottom: '2rem',
                 },
@@ -32,9 +33,9 @@ export const defaultOrdersPage: StorefrontNode = {
             id: 'orders_list',
             type: 'OrderList',
             props: {},
-            bindings: {
-                orders: 'orders.results',
-                currency: 'store.currency',
+            bindingMap: {
+                orders: migrateStringBinding('orders.results'),
+                currency: migrateStringBinding('store.currency'),
             },
         },
     ],

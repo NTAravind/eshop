@@ -115,7 +115,7 @@ function resolvePath(
     segments: (string | number)[],
     ctx: BindingContext
 ): unknown {
-    // Repeater scope
+    // Repeater/Custom scope (check explicit item/index first)
     if (root === 'item') {
         return walkObject(ctx.__scope?.item, segments);
     }
@@ -123,7 +123,13 @@ function resolvePath(
         return segments.length === 0 ? ctx.__scope?.index : undefined;
     }
 
-    // Standard context roots
+    // Check if the root exists in the local scope override
+    if (ctx.__scope && root in ctx.__scope) {
+        const scopedValue = (ctx.__scope as unknown as Record<string, unknown>)[root];
+        return segments.length === 0 ? scopedValue : walkObject(scopedValue, segments);
+    }
+
+    // Standard global context roots
     const rootValue = (ctx as unknown as Record<string, unknown>)[root];
     return segments.length === 0 ? rootValue : walkObject(rootValue, segments);
 }
@@ -225,6 +231,23 @@ export function migrateStringBinding(path: string): BindingPath {
 }
 
 /**
+ * Convert a BindingPath AST node to a string representation.
+ */
+export function stringifyBinding(expr: BindingExpr): string {
+    if (expr.kind !== 'path') return '';
+
+    let result = expr.root;
+    for (const seg of expr.segments) {
+        if (typeof seg === 'number') {
+            result += `[${seg}]`;
+        } else {
+            result += `.${seg}`;
+        }
+    }
+    return result;
+}
+
+/**
  * Migrate all string bindings in a StorefrontNode tree to bindingMap.
  * Does NOT remove the old `bindings` field (for backward compat).
  */
@@ -232,8 +255,9 @@ export function migrateNodeBindings(node: StorefrontNode): StorefrontNode {
     const bindingMap: Record<string, BindingExpr> = { ...node.bindingMap };
 
     // Migrate legacy string bindings
-    if (node.bindings && !node.bindingMap) {
-        for (const [prop, path] of Object.entries(node.bindings)) {
+    const legacyNode = node as StorefrontNode & { bindings?: Record<string, string> };
+    if (legacyNode.bindings && !node.bindingMap) {
+        for (const [prop, path] of Object.entries(legacyNode.bindings)) {
             if (typeof path === 'string' && path.length > 0) {
                 bindingMap[prop] = migrateStringBinding(path);
             }

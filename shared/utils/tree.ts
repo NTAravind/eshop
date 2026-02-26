@@ -123,14 +123,17 @@ export function cloneNodeWithNewIds(node: StorefrontNode): StorefrontNode {
         props: node.props ? { ...node.props } : {},
     };
 
-    if (node.styles) {
-        cloned.styles = JSON.parse(JSON.stringify(node.styles));
+    if (node.styleTokens) {
+        cloned.styleTokens = { ...node.styleTokens };
     }
-    if (node.bindings) {
-        cloned.bindings = { ...node.bindings };
+    if (node.styleOverrides) {
+        cloned.styleOverrides = JSON.parse(JSON.stringify(node.styleOverrides));
     }
-    if (node.actions) {
-        cloned.actions = JSON.parse(JSON.stringify(node.actions));
+    if (node.bindingMap) {
+        cloned.bindingMap = JSON.parse(JSON.stringify(node.bindingMap));
+    }
+    if (node.actionMap) {
+        cloned.actionMap = JSON.parse(JSON.stringify(node.actionMap));
     }
     if (node.children) {
         cloned.children = node.children.map(cloneNodeWithNewIds);

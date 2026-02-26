@@ -1,4 +1,5 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
 
 /**
  * Default login page with OAuth authentication
@@ -7,7 +8,7 @@ export const defaultLoginPage: StorefrontNode = {
     id: 'page_login',
     type: 'Container',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             display: 'flex',
             flexDirection: 'column',
@@ -23,7 +24,7 @@ export const defaultLoginPage: StorefrontNode = {
             id: 'login_card',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     width: '100%',
                     maxWidth: '400px',
@@ -38,7 +39,7 @@ export const defaultLoginPage: StorefrontNode = {
                     id: 'login_header',
                     type: 'Column',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             alignItems: 'center',
                             marginBottom: '2rem',
@@ -51,10 +52,10 @@ export const defaultLoginPage: StorefrontNode = {
                             props: {
                                 level: 1,
                             },
-                            bindings: {
-                                text: 'store.name',
+                            bindingMap: {
+                                text: migrateStringBinding('store.name'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontSize: '1.875rem',
                                     fontWeight: '700',
@@ -68,7 +69,7 @@ export const defaultLoginPage: StorefrontNode = {
                             props: {
                                 text: 'Sign in to your account',
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     color: 'var(--muted-foreground)',
                                     fontSize: '1rem',
@@ -78,14 +79,128 @@ export const defaultLoginPage: StorefrontNode = {
                     ],
                 },
                 {
-                    id: 'oauth_buttons',
-                    type: 'OAuthButtons',
-                    props: {
-                        providers: ['google', 'instagram'],
+                    id: 'oauth_buttons_container',
+                    type: 'Container',
+                    props: {},
+                    styleOverrides: {
+                        base: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1rem',
+                            width: '100%',
+                        },
                     },
-                    bindings: {
-                        callbackUrl: 'route.searchParams.redirect',
-                    },
+                    children: [
+                        {
+                            id: 'google_login_button',
+                            type: 'Container',
+                            props: {},
+                            actionMap: {
+                                onClick: {
+                                    id: 'act_google_login',
+                                    steps: [
+                                        {
+                                            id: 'step_google_login',
+                                            actionId: 'OAUTH_LOGIN',
+                                            payload: { provider: 'google' },
+                                            payloadBindings: {
+                                                callbackUrl: {
+                                                    kind: 'path',
+                                                    root: 'route',
+                                                    segments: ['searchParams', 'redirect'],
+                                                },
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                            styleOverrides: {
+                                base: {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '0.75rem 1.5rem',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '0.5rem',
+                                    backgroundColor: 'white',
+                                    cursor: 'pointer',
+                                },
+                                hover: {
+                                    opacity: 0.9,
+                                },
+                            },
+                            children: [
+                                {
+                                    id: 'google_login_text',
+                                    type: 'Text',
+                                    props: {
+                                        text: 'Continue with Google',
+                                    },
+                                    styleOverrides: {
+                                        base: {
+                                            color: 'var(--foreground)',
+                                            fontSize: '1rem',
+                                            fontWeight: '500',
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                        {
+                            id: 'instagram_login_button',
+                            type: 'Container',
+                            props: {},
+                            actionMap: {
+                                onClick: {
+                                    id: 'act_instagram_login',
+                                    steps: [
+                                        {
+                                            id: 'step_instagram_login',
+                                            actionId: 'OAUTH_LOGIN',
+                                            payload: { provider: 'instagram' },
+                                            payloadBindings: {
+                                                callbackUrl: {
+                                                    kind: 'path',
+                                                    root: 'route',
+                                                    segments: ['searchParams', 'redirect'],
+                                                },
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                            styleOverrides: {
+                                base: {
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '0.75rem 1.5rem',
+                                    borderRadius: '0.5rem',
+                                    background: 'linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%)',
+                                    cursor: 'pointer',
+                                },
+                                hover: {
+                                    opacity: 0.9,
+                                },
+                            },
+                            children: [
+                                {
+                                    id: 'instagram_login_text',
+                                    type: 'Text',
+                                    props: {
+                                        text: 'Continue with Instagram',
+                                    },
+                                    styleOverrides: {
+                                        base: {
+                                            color: 'white',
+                                            fontSize: '1rem',
+                                            fontWeight: '500',
+                                        },
+                                    },
+                                },
+                            ],
+                        },
+                    ],
                 },
                 {
                     id: 'login_footer',
@@ -93,7 +208,7 @@ export const defaultLoginPage: StorefrontNode = {
                     props: {
                         text: 'By signing in, you agree to our Terms of Service and Privacy Policy.',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             marginTop: '1.5rem',
                             textAlign: 'center',

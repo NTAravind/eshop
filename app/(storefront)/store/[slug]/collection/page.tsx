@@ -109,7 +109,9 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
         return { ...facet, values };
     });
 
-    const fallbackSchemaFacets = schemaFacets.filter((facet) => !dbFacetCodes.has(facet.code) && facet.values.length > 0);
+    const fallbackSchemaFacets = schemaFacets
+        .filter((facet) => !dbFacetCodes.has(facet.code) && facet.values.length > 0)
+        .map(facet => ({ ...facet, productSchemaId: facet.productSchemaId }));
 
     const schemaPickerFacet = activeSchemas.length > 1
         ? {
@@ -133,6 +135,7 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
         id: facet.id,
         code: facet.code,
         name: facet.name,
+        productSchemaId: (facet as any).productSchemaId,
         values: facet.values.map((value) => ({
             id: value.id,
             value: value.value,
@@ -194,6 +197,20 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
                             collection: {
                                 products: productsResult.products.map((p) => {
                                     const firstVariant = p.variants?.[0];
+                                    const mappedVariants = p.variants?.map((v) => ({
+                                        id: v.id,
+                                        sku: v.sku,
+                                        price: v.price,
+                                        stock: v.stock,
+                                        customData: v.customData as Record<string, unknown> | undefined,
+                                        images: v.images?.map((img) => ({
+                                            url: img.url,
+                                            alt: img.alt || '',
+                                            position: img.position,
+                                        })) || [],
+                                        isActive: v.isActive,
+                                    })) || [];
+
                                     return {
                                         id: p.id,
                                         name: p.name,
@@ -203,19 +220,8 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
                                             alt: img.alt || p.name,
                                             position: img.position,
                                         })) || [],
-                                        variants: p.variants?.map((v) => ({
-                                            id: v.id,
-                                            sku: v.sku,
-                                            price: v.price,
-                                            stock: v.stock,
-                                            customData: v.customData as Record<string, unknown> | undefined,
-                                            images: v.images?.map((img) => ({
-                                                url: img.url,
-                                                alt: img.alt || '',
-                                                position: img.position,
-                                            })) || [],
-                                            isActive: v.isActive,
-                                        })) || [],
+                                        variants: mappedVariants,
+                                        defaultVariant: mappedVariants.find((v) => v.isActive) || mappedVariants[0],
                                         customData: p.customData as Record<string, unknown> | undefined,
                                         productSchemaId: p.productSchemaId || undefined,
                                         categoryId: p.categoryId || undefined,
@@ -269,6 +275,20 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
                         products: productsResult.products.map((p) => {
                             // ... map products (kept same as logic is inside map, preventing large diff)
                             const firstVariant = p.variants?.[0];
+                            const mappedVariants = p.variants?.map((v) => ({
+                                id: v.id,
+                                sku: v.sku,
+                                price: v.price,
+                                stock: v.stock,
+                                customData: v.customData as Record<string, unknown> | undefined,
+                                images: v.images?.map((img) => ({
+                                    url: img.url,
+                                    alt: img.alt || '',
+                                    position: img.position,
+                                })) || [],
+                                isActive: v.isActive,
+                            })) || [];
+
                             return {
                                 id: p.id,
                                 name: p.name,
@@ -278,19 +298,8 @@ export default async function StoreCollectionPage({ params, searchParams }: Coll
                                     alt: img.alt || p.name,
                                     position: img.position,
                                 })) || [],
-                                variants: p.variants?.map((v) => ({
-                                    id: v.id,
-                                    sku: v.sku,
-                                    price: v.price,
-                                    stock: v.stock,
-                                    customData: v.customData as Record<string, unknown> | undefined,
-                                    images: v.images?.map((img) => ({
-                                        url: img.url,
-                                        alt: img.alt || '',
-                                        position: img.position,
-                                    })) || [],
-                                    isActive: v.isActive,
-                                })) || [],
+                                variants: mappedVariants,
+                                defaultVariant: mappedVariants.find((v) => v.isActive) || mappedVariants[0],
                                 customData: p.customData as Record<string, unknown> | undefined,
                                 productSchemaId: p.productSchemaId || undefined,
                                 categoryId: p.categoryId || undefined,

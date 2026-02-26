@@ -1,4 +1,6 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../../binding-ast';
+import { migrateActionRef } from '../../actions/pipeline';
 
 /**
  * Schema-aware ProductCard prefab
@@ -8,23 +10,25 @@ export const productCardPrefab: StorefrontNode = {
     id: 'ProductCard_default',
     type: 'Container',
     props: {},
-    actions: {
-        onClick: {
+    actionMap: {
+        onClick: migrateActionRef({
             actionId: 'NAVIGATE',
             payloadBindings: {
                 to: 'product.href',
             },
-        },
+        }),
     },
-    styles: {
+    styleOverrides: {
         base: {
-            width: '100%',
-            maxWidth: '300px',
+            width: '280px',
+            maxWidth: '320px',
             borderRadius: '0.5rem',
             overflow: 'hidden',
             border: '1px solid var(--border)',
             transition: 'all 0.2s',
             cursor: 'pointer',
+            display: 'inline-flex',
+            flexDirection: 'column',
         },
         hover: {
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
@@ -38,11 +42,19 @@ export const productCardPrefab: StorefrontNode = {
             props: {
                 alt: 'Product',
             },
-            bindings: {
-                src: 'product.defaultVariant.images[0].url',
-                alt: 'product.name',
+            bindingMap: {
+                src: {
+                    kind: 'fallback',
+                    primary: migrateStringBinding('product.defaultVariant.images[0].url'),
+                    fallback: migrateStringBinding('product.images[0].url'),
+                },
+                alt: {
+                    kind: 'fallback',
+                    primary: migrateStringBinding('product.name'),
+                    fallback: { kind: 'literal', value: 'Product' },
+                },
             },
-            styles: {
+            styleOverrides: {
                 base: {
                     width: '100%',
                     aspectRatio: '1',
@@ -54,9 +66,12 @@ export const productCardPrefab: StorefrontNode = {
             id: 'product_card_content',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.35rem',
                 },
             },
             children: [
@@ -66,10 +81,10 @@ export const productCardPrefab: StorefrontNode = {
                     props: {
                         level: 3,
                     },
-                    bindings: {
-                        text: 'product.name',
+                    bindingMap: {
+                        text: migrateStringBinding('product.name'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1rem',
                             fontWeight: '600',
@@ -81,13 +96,13 @@ export const productCardPrefab: StorefrontNode = {
                     id: 'product_card_description',
                     type: 'Text',
                     props: {},
-                    bindings: {
+                    bindingMap: {
                         // Example: Use customData for schema-specific fields
                         // For shoes: product.customData.material
                         // For clothing: product.customData.fabric
-                        text: 'product.description',
+                        text: migrateStringBinding('product.description'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '0.875rem',
                             color: 'var(--muted-foreground)',
@@ -103,11 +118,15 @@ export const productCardPrefab: StorefrontNode = {
                     id: 'product_card_price',
                     type: 'PriceDisplay',
                     props: {},
-                    bindings: {
-                        price: 'product.defaultVariant.price',
-                        currency: 'store.currency',
+                    bindingMap: {
+                        price: {
+                            kind: 'fallback',
+                            primary: migrateStringBinding('product.defaultVariant.price'),
+                            fallback: migrateStringBinding('product.price'),
+                        },
+                        currency: migrateStringBinding('store.currency'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.125rem',
                             fontWeight: '700',
@@ -121,8 +140,8 @@ export const productCardPrefab: StorefrontNode = {
                     props: {
                         text: 'Add to Cart',
                     },
-                    actions: {
-                        onClick: {
+                    actionMap: {
+                        onClick: migrateActionRef({
                             actionId: 'ADD_TO_CART',
                             payloadBindings: {
                                 variantId: 'product.defaultVariant.id',
@@ -131,9 +150,9 @@ export const productCardPrefab: StorefrontNode = {
                                 quantity: 1,
                                 openCart: true,
                             },
-                        },
+                        }),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             marginTop: '1rem',
                             width: '100%',

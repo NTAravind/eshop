@@ -8,6 +8,7 @@ import type { StorefrontNode } from '@/types/storefront-builder';
 import { StorefrontPage } from '../_components/StorefrontPage';
 import { auth } from '@/server/auth';
 import { cookies } from 'next/headers';
+import { listPaymentConfigs } from '@/server/dal/paymentConfig.dal';
 
 interface CheckoutPageProps {
     params: Promise<{ slug: string }>;
@@ -46,12 +47,20 @@ export default async function StoreCheckoutPage({ params }: CheckoutPageProps) {
     const cart = mapCartToContext(cartData, store.currency || 'USD');
 
     // Get published documents
-    const [layoutDoc, pageDoc, settingsMap, prefabs] = await Promise.all([
+    const [layoutDoc, pageDoc, settingsMap, prefabs, paymentConfigs] = await Promise.all([
         getPublishedDocument(store.id, StorefrontDocKind.LAYOUT, 'GLOBAL_LAYOUT'),
         getPublishedDocument(store.id, StorefrontDocKind.PAGE, 'CHECKOUT'),
         getSettings(store.id),
         getPublishedPrefabs(store.id),
+        listPaymentConfigs(store.id),
     ]);
+
+    const activePaymentMethods = paymentConfigs
+        .filter(c => c.isActive)
+        .reduce((acc, config) => {
+            acc[config.provider] = true;
+            return acc;
+        }, {} as Record<string, boolean>);
 
     const layout = layoutDoc?.tree as unknown as StorefrontNode | undefined;
     const page = pageDoc?.tree as unknown as StorefrontNode;
@@ -94,6 +103,8 @@ export default async function StoreCheckoutPage({ params }: CheckoutPageProps) {
                 name: store.name,
                 slug: store.slug,
                 currency: store.currency || 'USD',
+                requirePhoneNumber: false, // Provide default to match StoreContext type
+                paymentMethods: activePaymentMethods
             }}
             layout={layout}
             page={page}

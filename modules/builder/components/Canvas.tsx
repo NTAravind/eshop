@@ -9,11 +9,14 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useDroppable, useDndMonitor, DragOverlay } from '@dnd-kit/core';
 import { cn } from '@/shared/utils';
 import { useEditorStore, selectSelectedNode } from '@/modules/builder/editor-store';
-import type { StorefrontNode, DeviceType } from '@/types/storefront-builder';
+import type { StorefrontNode, DeviceType, StyleObject } from '@/types/storefront-builder';
 import { generateThemeStyleObject } from '@/modules/storefront/theme';
 import { calculateSnap, getSiblingRects, type SnapLine } from '@/modules/builder/snapping';
 import { InlineTextEditor, EDITABLE_COMPONENTS } from './InlineTextEditor';
 import { findNodeById } from '@/shared/utils/tree';
+import { resolveTokenStyles } from '@/modules/storefront/tokens';
+import type { CSSProperties } from 'react';
+import { Lock, Unlock } from 'lucide-react';
 
 interface CanvasProps {
     children?: React.ReactNode;
@@ -511,6 +514,7 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
     const selection = useEditorStore((s) => s.selection);
     const selectedNode = useEditorStore(selectSelectedNode);
     const updateNode = useEditorStore((s) => s.updateNode);
+    const theme = useEditorStore((s) => s.theme);
     const elementRef = useRef<HTMLElement | null>(null);
     const pendingRectRef = useRef<DOMRect | null>(null);
     const rectRafRef = useRef<number | null>(null);
@@ -521,8 +525,47 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
         scaleRef.current = scale;
     }, [scale]);
 
+    // Helper to get effective styles (V2 only)
+    const getEffectiveStyles = useCallback((node: StorefrontNode | null): CSSProperties => {
+        if (!node) return {};
+        // Always use V2 resolution
+        const breakpoint = 'base';
+        return resolveTokenStyles(node.styleTokens || {}, node.styleOverrides || {}, theme as any, breakpoint);
+    }, [theme]);
+
     // Check if node is absolutely positioned
-    const isAbsolute = selectedNode?.styles?.base?.position === 'absolute';
+    const effectiveStyles = getEffectiveStyles(selectedNode);
+    const isAbsolute = effectiveStyles.position === 'absolute';
+
+    // Toggle freeform mode (absolute positioning)
+    const toggleFreeform = useCallback(() => {
+        if (!selectedNode) return;
+
+        if (isAbsolute) {
+            // Convert to flow layout (remove absolute positioning)
+            const { position, left, top, ...restOverrides } = selectedNode.styleOverrides?.base || {};
+            updateNode(selectedNode.id, {
+                styleOverrides: {
+                    ...selectedNode.styleOverrides,
+                    base: restOverrides,
+                }
+            });
+        } else {
+            // Convert to absolute positioning (freeform mode)
+            const currentRect = rect || { left: 0, top: 0 };
+            updateNode(selectedNode.id, {
+                styleOverrides: {
+                    ...selectedNode.styleOverrides,
+                    base: {
+                        ...selectedNode.styleOverrides?.base,
+                        position: 'absolute',
+                        left: `${Math.round(currentRect.left)}px`,
+                        top: `${Math.round(currentRect.top)}px`,
+                    }
+                }
+            });
+        }
+    }, [selectedNode, isAbsolute, rect, updateNode]);
 
     const scheduleRectUpdate = useCallback((nextRect: DOMRect) => {
         pendingRectRef.current = nextRect;
@@ -619,8 +662,11 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
         const startX = e.clientX;
         const startY = e.clientY;
 
-        const leftValue = parseFloat(selectedNode.styles?.base?.left as string);
-        const topValue = parseFloat(selectedNode.styles?.base?.top as string);
+        // Get position from V2 overrides
+        const currentLeft = effectiveStyles.left as string;
+        const currentTop = effectiveStyles.top as string;
+        const leftValue = parseFloat(currentLeft);
+        const topValue = parseFloat(currentTop);
         const startLeft = Number.isFinite(leftValue) ? leftValue : rect.left;
         const startTop = Number.isFinite(topValue) ? topValue : rect.top;
         let latestLeft = startLeft;
@@ -686,11 +732,12 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
             window.removeEventListener('mouseup', onMouseUp);
             onSnap?.([]);
 
+            // Write to V2 styleOverrides
             updateNode(selectedNode.id, {
-                styles: {
-                    ...selectedNode.styles,
+                styleOverrides: {
+                    ...selectedNode.styleOverrides,
                     base: {
-                        ...selectedNode.styles?.base,
+                        ...selectedNode.styleOverrides?.base,
                         left: `${latestLeft}px`,
                         top: `${latestTop}px`,
                     }
@@ -710,10 +757,16 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
         const startX = e.clientX;
         const startY = e.clientY;
 
-        const widthValue = parseFloat(selectedNode.styles?.base?.width as string);
-        const heightValue = parseFloat(selectedNode.styles?.base?.height as string);
-        const leftValue = parseFloat(selectedNode.styles?.base?.left as string);
-        const topValue = parseFloat(selectedNode.styles?.base?.top as string);
+        // Get dimensions from V2 overrides
+        const currentWidth = effectiveStyles.width as string;
+        const currentHeight = effectiveStyles.height as string;
+        const currentLeft = effectiveStyles.left as string;
+        const currentTop = effectiveStyles.top as string;
+
+        const widthValue = parseFloat(currentWidth);
+        const heightValue = parseFloat(currentHeight);
+        const leftValue = parseFloat(currentLeft);
+        const topValue = parseFloat(currentTop);
 
         const startWidth = Number.isFinite(widthValue) ? widthValue : (rect?.width || 100);
         const startHeight = Number.isFinite(heightValue) ? heightValue : (rect?.height || 100);
@@ -736,9 +789,6 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
             const rawDx = (ev.clientX - startX) / scale;
             const rawDy = (ev.clientY - startY) / scale;
 
-            // We need to calculate the POTENTIAL new rect to snap it
-            // This is trickier for resize because different edges move
-
             let newW = startWidth;
             let newH = startHeight;
             let newL = startLeft;
@@ -757,7 +807,6 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
                 newH = h;
             }
 
-            // Construct proposal rect
             const proposal = {
                 id: selection.nodeId!,
                 left: newL, top: newT, width: newW, height: newH,
@@ -765,62 +814,35 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
                 centerX: newL + newW / 2, centerY: newT + newH / 2
             };
 
-            // Calculate snap
-            // We only want to snap the edges that are moving? 
-            // calculateSnap aligns the WHOLE object based on delta.
-            // For resize, we might want to snap specific edges.
-            // But calculateSnap returns a delta for the whole rect.
-            // If we blindly apply it, it might shift the non-moving edges.
-            // However, sticking to "move whole rect to snap" logic for now:
-
             const snapResult = calculateSnap(proposal, siblings, 5, scale);
-
-            // If dragging SE, we want to snap Right and Bottom.
-            // If calculateSnap returns x/y shift, it means "shift the whole object by x/y".
-            // But here we want to shift the EDGE.
-            // If we are resizing East, and snapResult.x says "move +5px", it means the RIGHT edge should move +5px?
-            // "calculateSnap" compares Left, Center, Right.
-            // If it matched Right edge, it returns delta to align Right edge.
-
             const dx = rawDx + snapResult.x;
             const dy = rawDy + snapResult.y;
 
-            const newStyles = { ...selectedNode.styles?.base };
-
-            // Apply snapped deltas
-            // Note: this is a simplification. Ideally snapping should be per-edge.
-            // But let's see if this feels okay.
-
+            // Apply changes directly to element for immediate feedback
             if (direction.includes('e')) {
                 latestWidth = Math.max(10, Math.round(startWidth + dx));
-                newStyles.width = `${latestWidth}px`;
+                element.style.width = `${latestWidth}px`;
             }
             if (direction.includes('s')) {
                 latestHeight = Math.max(10, Math.round(startHeight + dy));
-                newStyles.height = `${latestHeight}px`;
+                element.style.height = `${latestHeight}px`;
             }
-
             if (direction.includes('w')) {
                 const w = Math.max(10, Math.round(startWidth - dx));
                 latestWidth = w;
                 latestLeft = Math.round(startLeft + (startWidth - w));
-                newStyles.width = `${w}px`;
-                newStyles.left = `${latestLeft}px`;
+                element.style.width = `${w}px`;
+                element.style.left = `${latestLeft}px`;
             }
             if (direction.includes('n')) {
                 const h = Math.max(10, Math.round(startHeight - dy));
                 latestHeight = h;
                 latestTop = Math.round(startTop + (startHeight - h));
-                newStyles.height = `${h}px`;
-                newStyles.top = `${latestTop}px`;
+                element.style.height = `${h}px`;
+                element.style.top = `${latestTop}px`;
             }
 
             onSnap?.(snapResult.lines);
-
-            if (typeof newStyles.width === 'string') element.style.width = newStyles.width;
-            if (typeof newStyles.height === 'string') element.style.height = newStyles.height;
-            if (typeof newStyles.left === 'string') element.style.left = newStyles.left;
-            if (typeof newStyles.top === 'string') element.style.top = newStyles.top;
 
             scheduleRectUpdate({
                 left: latestLeft,
@@ -840,11 +862,12 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
             window.removeEventListener('mouseup', onMouseUp);
             onSnap?.([]);
 
+            // Write to V2 styleOverrides
             updateNode(selectedNode.id, {
-                styles: {
-                    ...selectedNode.styles,
+                styleOverrides: {
+                    ...selectedNode.styleOverrides,
                     base: {
-                        ...selectedNode.styles?.base,
+                        ...selectedNode.styleOverrides?.base,
                         left: `${latestLeft}px`,
                         top: `${latestTop}px`,
                         width: `${latestWidth}px`,
@@ -876,9 +899,24 @@ export function SelectionOverlay({ scale, onSnap }: { scale: number; onSnap?: (l
             onMouseDown={handleDragStart}
         >
             {/* Label */}
-            <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-t-sm whitespace-nowrap">
+            <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-t-sm whitespace-nowrap flex items-center gap-1.5">
                 {selectedNode?.type || selection.nodeId}
                 {isAbsolute && <span className="opacity-70 ml-1">({Math.round(rect.left)}, {Math.round(rect.top)})</span>}
+                {/* Lock/Unlock Toggle */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFreeform();
+                    }}
+                    className="ml-1 p-0.5 hover:bg-primary-foreground/20 rounded"
+                    title={isAbsolute ? "Unlock (convert to flow layout)" : "Lock (enable freeform positioning)"}
+                >
+                    {isAbsolute ? (
+                        <Unlock className="w-3 h-3" />
+                    ) : (
+                        <Lock className="w-3 h-3" />
+                    )}
+                </button>
             </div>
 
             {/* Resize handles */}

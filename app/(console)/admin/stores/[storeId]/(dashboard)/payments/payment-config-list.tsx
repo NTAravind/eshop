@@ -7,16 +7,17 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 interface PaymentConfigListProps {
+    storeId: string;
     configs: any[];
 }
 
-export function PaymentConfigList({ configs }: PaymentConfigListProps) {
+export function PaymentConfigList({ storeId, configs }: PaymentConfigListProps) {
 
     const handleToggle = async (id: string, currentState: boolean) => {
         try {
             const res = await fetch(`/api/admin/payment-configs/${id}`, {
                 method: "PATCH",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "x-store-id": storeId },
                 body: JSON.stringify({ isActive: !currentState }),
             });
 

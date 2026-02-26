@@ -57,7 +57,12 @@ export async function POST(req: NextRequest) {
         if (!store) {
             return NextResponse.json({ error: 'Store not found' }, { status: 404 });
         }
-        const cartContext = mapCartToContext(cart, store.currency || 'USD');
+
+        if (!cart) {
+            return NextResponse.json({ error: 'Failed to create cart' }, { status: 500 });
+        }
+
+        const cartContext = mapCartToContext(cart as any, store.currency || 'USD');
 
         return NextResponse.json(cartContext, { status: 201 });
     } catch (error: any) {

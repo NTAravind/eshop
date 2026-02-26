@@ -1,4 +1,6 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
+import { migrateActionRef } from '../actions/pipeline';
 
 /**
  * Default home page
@@ -15,7 +17,7 @@ export const defaultHomePage: StorefrontNode = {
             props: {
                 className: 'hero',
             },
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '4rem 2rem',
                     textAlign: 'center',
@@ -30,10 +32,10 @@ export const defaultHomePage: StorefrontNode = {
                         level: 1,
                         text: 'Welcome to Our Store',
                     },
-                    bindings: {
-                        text: 'store.name',
+                    bindingMap: {
+                        text: migrateStringBinding('store.name'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '3rem',
                             fontWeight: 700,
@@ -47,7 +49,7 @@ export const defaultHomePage: StorefrontNode = {
                     props: {
                         text: 'Discover our amazing collection of products',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.25rem',
                             color: 'var(--muted-foreground)',
@@ -62,11 +64,11 @@ export const defaultHomePage: StorefrontNode = {
                         variant: 'default',
                         text: 'Shop Now',
                     },
-                    actions: {
-                        onClick: {
+                    actionMap: {
+                        onClick: migrateActionRef({
                             actionId: 'NAVIGATE',
                             payload: { to: '/collection' },
-                        },
+                        }),
                     },
                 },
             ],
@@ -76,7 +78,7 @@ export const defaultHomePage: StorefrontNode = {
             id: 'home_featured',
             type: 'Section',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '4rem 2rem',
                 },
@@ -89,7 +91,7 @@ export const defaultHomePage: StorefrontNode = {
                         level: 2,
                         text: 'Featured Products',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             textAlign: 'center',
                             marginBottom: '2rem',
@@ -103,8 +105,8 @@ export const defaultHomePage: StorefrontNode = {
                         columns: 4,
                         limit: 8,
                     },
-                    bindings: {
-                        products: 'collection.products',
+                    bindingMap: {
+                        products: migrateStringBinding('collection.products'),
                     },
                 },
             ],

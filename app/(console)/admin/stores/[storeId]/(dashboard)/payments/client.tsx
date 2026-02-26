@@ -8,6 +8,7 @@ import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recha
 import { PaymentConfigList } from "./payment-config-list";
 
 interface PaymentsClientProps {
+    storeId: string;
     data: any[]; // Payment transactions
     configs: any[]; // Payment configurations
     stats: {
@@ -17,7 +18,7 @@ interface PaymentsClientProps {
     };
 }
 
-export function PaymentsClient({ data, configs, stats }: PaymentsClientProps) {
+export function PaymentsClient({ storeId, data, configs, stats }: PaymentsClientProps) {
 
     // Process data for chart - Group by Date (last 7-10 days)
     const chartData = data.reduce((acc: any[], payment: any) => {
@@ -136,7 +137,7 @@ export function PaymentsClient({ data, configs, stats }: PaymentsClientProps) {
                 </TabsContent>
 
                 <TabsContent value="configuration" className="space-y-4">
-                    <PaymentConfigList configs={configs} />
+                    <PaymentConfigList storeId={storeId} configs={configs} />
                 </TabsContent>
             </Tabs>
         </div>

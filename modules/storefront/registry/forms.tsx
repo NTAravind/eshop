@@ -10,6 +10,8 @@ import { registerComponent } from './index';
 import type { CartItemContext, FieldConfig, UserContext } from '@/types/storefront-builder';
 import { OAuthButtons } from './forms/OAuthButtons';
 import { UserProfileForm } from './forms/UserProfileForm';
+import { ProfileSection, ProfileLabel, ProfileInput, ProfileSubmitButton } from './forms/UserProfileComponents';
+import { UserProfileContext } from './forms/UserProfileForm';
 import { formatCurrency } from '@/shared/utils';
 import { useRuntimeContext } from '../runtime/context';
 
@@ -166,16 +168,22 @@ interface CheckoutFormProps extends BaseComponentProps {
     user?: UserContext | null;
     requirePhone?: boolean;
     onSubmit?: () => void;
+    contactHeading?: string;
+    shippingHeading?: string;
+    children?: React.ReactNode;
 }
 
 function CheckoutForm({
     fields = {},
     user,
     requirePhone = false,
+    contactHeading = 'Contact Information',
+    shippingHeading = 'Shipping Address',
     style,
     className,
     onSubmit,
     deliveryMode,
+    children,
     ...rest
 }: CheckoutFormProps & { deliveryMode?: 'DELIVERY' | 'PICKUP' }) {
     const inputStyle = {
@@ -191,125 +199,160 @@ function CheckoutForm({
         fontWeight: 500,
     };
 
+    const [formData, setFormData] = React.useState<Record<string, string | number | boolean>>({
+        fullName: user?.name || '',
+        email: user?.email || '',
+        phone: user?.phone || '',
+        shippingStreet: '',
+        shippingCity: '',
+        shippingState: '',
+        shippingPostal: '',
+        shippingCountry: 'India',
+        sameAsBilling: true,
+    });
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    const handleChange = (field: string, value: string | number | boolean) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            await Promise.resolve(onSubmit?.());
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const hasChildren = React.Children.count(children) > 0;
+
     return (
-        <form
-            id="checkout-form"
-            onSubmit={(e) => { e.preventDefault(); onSubmit?.(); }}
-            style={{
-                padding: '1.5rem',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                marginBottom: '1.5rem',
-                ...style,
-            }}
-            className={className}
-            {...rest}
-        >
-            {/* Contact Information */}
-            <h3 style={{ fontWeight: 600, marginBottom: '1rem' }}>Contact Information</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div>
-                    <label style={labelStyle as any}>Full Name *</label>
-                    <input
-                        type="text"
-                        name="fullName"
-                        defaultValue={user?.name || ''}
-                        required
-                        style={inputStyle}
-                    />
-                </div>
-                <div>
-                    <label style={labelStyle as any}>Email *</label>
-                    <input
-                        type="email"
-                        name="email"
-                        defaultValue={user?.email || ''}
-                        required
-                        style={inputStyle}
-                    />
-                </div>
-                <div style={{ gridColumn: 'span 2' }}>
-                    <label style={labelStyle as any}>
-                        Phone {requirePhone && <span style={{ color: 'var(--destructive)' }}>*</span>}
-                    </label>
-                    <input
-                        type="tel"
-                        name="phone"
-                        defaultValue={user?.phone || ''}
-                        required={requirePhone}
-                        style={inputStyle}
-                    />
-                </div>
-            </div>
+        <UserProfileContext.Provider value={{ formData, handleChange, isSubmitting, user }}>
+            <form
+                id="checkout-form"
+                onSubmit={handleSubmit}
+                style={{
+                    padding: '1.5rem',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    marginBottom: '1.5rem',
+                    ...style,
+                }}
+                className={className}
+                {...rest}
+            >
+                {hasChildren ? children : (
+                    <>
+                        {/* Contact Information */}
+                        <h3 style={{ fontWeight: 600, marginBottom: '1rem' }}>{contactHeading}</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div>
+                                <label style={labelStyle as any}>Full Name *</label>
+                                <input
+                                    type="text"
+                                    name="fullName"
+                                    defaultValue={user?.name || ''}
+                                    required
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label style={labelStyle as any}>Email *</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    defaultValue={user?.email || ''}
+                                    required
+                                    style={inputStyle}
+                                />
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label style={labelStyle as any}>
+                                    Phone {requirePhone && <span style={{ color: 'var(--destructive)' }}>*</span>}
+                                </label>
+                                <input
+                                    type="tel"
+                                    name="phone"
+                                    defaultValue={user?.phone || ''}
+                                    required={requirePhone}
+                                    style={inputStyle}
+                                />
+                            </div>
+                        </div>
 
-            {/* Shipping Address - Only show for Delivery */}
-            {deliveryMode !== 'PICKUP' && (
-                <>
-                    <h3 style={{ fontWeight: 600, marginBottom: '1rem', marginTop: '1.5rem' }}>Shipping Address</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                        <div>
-                            <label style={labelStyle as any}>Street Address *</label>
-                            <input
-                                type="text"
-                                name="shippingStreet"
-                                required
-                                placeholder="123 Main St, Apt 4B"
-                                style={inputStyle}
-                            />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div>
-                                <label style={labelStyle as any}>City *</label>
-                                <input
-                                    type="text"
-                                    name="shippingCity"
-                                    required
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle as any}>State/Province *</label>
-                                <input
-                                    type="text"
-                                    name="shippingState"
-                                    required
-                                    style={inputStyle}
-                                />
-                            </div>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                            <div>
-                                <label style={labelStyle as any}>Postal Code *</label>
-                                <input
-                                    type="text"
-                                    name="shippingPostal"
-                                    required
-                                    style={inputStyle}
-                                />
-                            </div>
-                            <div>
-                                <label style={labelStyle as any}>Country *</label>
-                                <input
-                                    type="text"
-                                    name="shippingCountry"
-                                    required
-                                    defaultValue="India"
-                                    style={inputStyle}
-                                />
-                            </div>
-                        </div>
-                    </div>
+                        {/* Shipping Address - Only show for Delivery */}
+                        {deliveryMode !== 'PICKUP' && (
+                            <>
+                                <h3 style={{ fontWeight: 600, marginBottom: '1rem', marginTop: '1.5rem' }}>{shippingHeading}</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={labelStyle as any}>Street Address *</label>
+                                        <input
+                                            type="text"
+                                            name="shippingStreet"
+                                            required
+                                            placeholder="123 Main St, Apt 4B"
+                                            style={inputStyle}
+                                        />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={labelStyle as any}>City *</label>
+                                            <input
+                                                type="text"
+                                                name="shippingCity"
+                                                required
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle as any}>State/Province *</label>
+                                            <input
+                                                type="text"
+                                                name="shippingState"
+                                                required
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={labelStyle as any}>Postal Code *</label>
+                                            <input
+                                                type="text"
+                                                name="shippingPostal"
+                                                required
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={labelStyle as any}>Country *</label>
+                                            <input
+                                                type="text"
+                                                name="shippingCountry"
+                                                required
+                                                defaultValue="India"
+                                                style={inputStyle}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
 
-                    {/* Billing Address Toggle */}
-                    <div style={{ marginTop: '1.5rem' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                            <input type="checkbox" name="sameAsBilling" defaultChecked />
-                            <span>Billing address same as shipping</span>
-                        </label>
-                    </div>
-                </>
-            )}
-        </form>
+                                {/* Billing Address Toggle */}
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                        <input type="checkbox" name="sameAsBilling" defaultChecked />
+                                        <span>Billing address same as shipping</span>
+                                    </label>
+                                </div>
+                            </>
+                        )}
+                    </>
+                )}
+            </form>
+        </UserProfileContext.Provider>
     );
 }
 
@@ -591,7 +634,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { providers: ['google', 'instagram'] },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -601,10 +644,11 @@ export function registerFormComponents() {
         category: 'forms',
         icon: 'User',
         propsSchema: {},
+        actionSlots: ['onSubmit'],
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -614,6 +658,7 @@ export function registerFormComponents() {
         category: 'forms',
         icon: 'Truck',
         propsSchema: {},
+        actionSlots: ['onChange'],
         controls: {
             deliveryLabel: { type: 'text', label: 'Delivery Label', defaultValue: '🚚 Delivery' },
             pickupLabel: { type: 'text', label: 'Pickup Label', defaultValue: '🏪 Pickup' },
@@ -621,7 +666,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { modes: ['DELIVERY', 'PICKUP'], deliveryLabel: '🚚 Delivery', pickupLabel: '🏪 Pickup' },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -630,11 +675,19 @@ export function registerFormComponents() {
         displayName: 'Checkout Form',
         category: 'forms',
         icon: 'ClipboardList',
-        propsSchema: {},
-        constraints: { canHaveChildren: false },
+        propsSchema: {
+            contactHeading: { type: 'text', label: 'Contact Heading', defaultValue: 'Contact Information' },
+            shippingHeading: { type: 'text', label: 'Shipping Heading', defaultValue: 'Shipping Address' },
+        },
+        actionSlots: ['onSubmit'],
+        constraints: { canHaveChildren: true },
         defaults: {
-            props: { requirePhone: true },
-            styles: {},
+            props: {
+                requirePhone: true,
+                contactHeading: 'Contact Information',
+                shippingHeading: 'Shipping Address',
+            },
+            styleOverrides: {},
         },
     });
 
@@ -647,7 +700,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -660,7 +713,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -676,7 +729,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { text: '🛒 Place Order' },
-            styles: { base: { width: 'fit-content' } },
+            styleOverrides: { base: { width: 'fit-content' } },
         },
     });
 
@@ -689,7 +742,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -702,7 +755,7 @@ export function registerFormComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -711,11 +764,78 @@ export function registerFormComponents() {
         displayName: 'Profile Form',
         category: 'forms',
         icon: 'UserCog',
-        propsSchema: {},
-        constraints: { canHaveChildren: false },
-        defaults: {
-            props: {},
-            styles: {},
+        propsSchema: {
+            heading: { type: 'text', label: 'Heading', defaultValue: 'Profile Settings' },
+            subheading: { type: 'text', label: 'Subheading', defaultValue: 'Update your personal information' },
+            nameLabel: { type: 'text', label: 'Name Label', defaultValue: 'Name' },
+            emailLabel: { type: 'text', label: 'Email Label', defaultValue: 'Email' },
+            phoneLabel: { type: 'text', label: 'Phone Label', defaultValue: 'Phone Number' },
+            addressHeading: { type: 'text', label: 'Address Heading', defaultValue: 'Address' },
+            saveLabel: { type: 'text', label: 'Save Button Label', defaultValue: 'Save Changes' },
         },
+        actionSlots: ['onSubmit'],
+        constraints: { canHaveChildren: true },
+        defaults: {
+            props: {
+                heading: 'Profile Settings',
+                subheading: 'Update your personal information',
+                nameLabel: 'Name',
+                emailLabel: 'Email',
+                phoneLabel: 'Phone Number',
+                addressHeading: 'Address',
+                saveLabel: 'Save Changes',
+            },
+            styleOverrides: {},
+        },
+    });
+
+    // Atomic Profile Components
+    registerComponent('ProfileSection', ProfileSection as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
+        type: 'ProfileSection',
+        displayName: 'Profile Section',
+        category: 'forms',
+        icon: 'Layout',
+        propsSchema: {},
+        constraints: { canHaveChildren: true },
+        defaults: { props: {}, styleOverrides: { base: { marginBottom: '1.5rem' } } },
+    });
+
+    registerComponent('ProfileLabel', ProfileLabel as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
+        type: 'ProfileLabel',
+        displayName: 'Label',
+        category: 'forms',
+        icon: 'Type',
+        propsSchema: {
+            text: { type: 'text', label: 'Text', defaultValue: 'Label' },
+        },
+        constraints: { canHaveChildren: false },
+        defaults: { props: { text: 'Label' }, styleOverrides: {} },
+    });
+
+    registerComponent('ProfileInput', ProfileInput as unknown as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
+        type: 'ProfileInput',
+        displayName: 'Input Field',
+        category: 'forms',
+        icon: 'FormInput',
+        propsSchema: {
+            fieldName: { type: 'text', label: 'Field Name', defaultValue: 'name' },
+            placeholder: { type: 'text', label: 'Placeholder', defaultValue: '' },
+            readOnly: { type: 'boolean', label: 'Read Only', defaultValue: false },
+        },
+        actionSlots: ['onChange'],
+        constraints: { canHaveChildren: false },
+        defaults: { props: { fieldName: 'name' }, styleOverrides: {} },
+    });
+
+    registerComponent('ProfileSubmitButton', ProfileSubmitButton as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
+        type: 'ProfileSubmitButton',
+        displayName: 'Submit Button',
+        category: 'forms',
+        icon: 'Save',
+        propsSchema: {
+            label: { type: 'text', label: 'Label', defaultValue: 'Save Changes' },
+        },
+        constraints: { canHaveChildren: true },
+        defaults: { props: { label: 'Save Changes' }, styleOverrides: {}, children: [] },
     });
 }

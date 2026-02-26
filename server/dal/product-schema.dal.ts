@@ -1,5 +1,5 @@
-import prisma from '@/server/db/prisma';
-import type { Prisma } from '../app/generated/prisma';
+import prisma from '../db/prisma';
+import type { Prisma } from '../../app/generated/prisma';
 
 /**
  * Get active product schema for a store

@@ -17,14 +17,15 @@ export interface BaseComponentProps {
 // Component registry type
 type ComponentRegistry = Map<string, ComponentType<BaseComponentProps & Record<string, unknown>>>;
 
-import type { ComponentDefinition } from '@/types/storefront-builder';
+import type { ComponentDefinition, ComponentContract } from '@/types/storefront-builder';
 
 // The registry
 const registry: ComponentRegistry = new Map();
 const definitions: Map<string, ComponentDefinition> = new Map();
+const contracts: Map<string, ComponentContract> = new Map();
 
 /**
- * Register a component
+ * Register a component (V1 — ComponentDefinition)
  */
 export function registerComponent(
     type: string,
@@ -38,6 +39,24 @@ export function registerComponent(
 }
 
 /**
+ * Register a component with a V2 contract.
+ * Validates and defaults required contract fields.
+ */
+export function registerComponentV2(
+    type: string,
+    component: ComponentType<BaseComponentProps & Record<string, unknown>>,
+    contract: ComponentContract
+) {
+    // Validate and default required fields
+    if (!contract.controls) contract.controls = {};
+    if (!contract.bindingSlots) contract.bindingSlots = {};
+    if (!contract.eventSlots) contract.eventSlots = [];
+
+    registry.set(type, component);
+    contracts.set(type, contract);
+}
+
+/**
  * Get a component from the registry
  */
 export function getComponent(
@@ -47,10 +66,17 @@ export function getComponent(
 }
 
 /**
- * Get a component definition
+ * Get a component definition (V1)
  */
 export function getComponentDefinition(type: string): ComponentDefinition | undefined {
     return definitions.get(type);
+}
+
+/**
+ * Get a component contract (V2)
+ */
+export function getComponentContract(type: string): ComponentContract | undefined {
+    return contracts.get(type);
 }
 
 /**
@@ -64,6 +90,13 @@ export function getRegistry(): {
         components: Object.fromEntries(definitions),
         implementations: Object.fromEntries(registry),
     };
+}
+
+/**
+ * Get the full contract registry (V2)
+ */
+export function getContractRegistry(): Map<string, ComponentContract> {
+    return contracts;
 }
 
 /**

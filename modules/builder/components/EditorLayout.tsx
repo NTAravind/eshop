@@ -42,6 +42,7 @@ import { RuntimeContextProvider } from '@/modules/storefront/runtime/context';
 import { handleKeyboardShortcut } from '@/modules/builder/keyboard';
 import { useAutoSave } from '@/modules/builder/useAutoSave';
 import { SelectionBreadcrumb } from '@/modules/builder/components/SelectionBreadcrumb';
+import { useValidationStore } from '@/modules/builder/stores/validation-store';
 
 interface EditorLayoutProps {
     storeId: string;
@@ -200,6 +201,27 @@ export function EditorLayout({
         loadedDocIdRef.current = documentId;
     }, [documentId, documentKind, documentKey, initialTree, initialTheme, loadDocument, setTheme]);
 
+    // Validation subscription
+    const runValidation = useValidationStore((s) => s.runValidation);
+    const autoValidateEnabled = useValidationStore((s) => s.autoValidateEnabled);
+
+    useEffect(() => {
+        if (!autoValidateEnabled) return;
+
+        // Initial check
+        const { tree } = useEditorStore.getState();
+        if (tree) runValidation(tree, undefined);
+
+        // Subscribe to changes
+        return useEditorStore.subscribe((state, prevState) => {
+            if (state.tree !== prevState.tree) {
+                if (state.tree) {
+                    runValidation(state.tree, undefined);
+                }
+            }
+        });
+    }, [autoValidateEnabled, runValidation]);
+
 
     // DnD sensors
     const sensors = useSensors(
@@ -252,7 +274,7 @@ export function EditorLayout({
                     id: `${componentType}_${Date.now()}`,
                     type: componentType,
                     props: { ...definition.defaults.props },
-                    styles: definition.defaults.styles ? { ...definition.defaults.styles } : undefined,
+                    styleOverrides: definition.defaults.styleOverrides ? { ...definition.defaults.styleOverrides } : undefined,
                     children: definition.defaults.children ? [...definition.defaults.children] : undefined,
                 };
 
@@ -276,19 +298,21 @@ export function EditorLayout({
                     const relativeX = (dropX - rect.left) / scale;
                     const relativeY = (dropY - rect.top) / scale;
 
-                    newNode.styles = {
-                        ...newNode.styles,
+                    newNode.styleOverrides = {
+                        ...newNode.styleOverrides,
                         base: {
-                            ...newNode.styles?.base,
+                            ...newNode.styleOverrides?.base,
                             position: 'absolute',
                             left: `${Math.round(relativeX)}px`,
                             top: `${Math.round(relativeY)}px`,
-                        }
+                        } as any
                     };
                 } else {
-                    if (newNode.styles?.base?.position === 'absolute') {
-                        const { position, left, top, ...restBase } = newNode.styles.base;
-                        newNode.styles.base = restBase;
+                    if (newNode.styleOverrides?.base?.position === 'absolute') {
+                        const { position, left, top, ...restBase } = newNode.styleOverrides.base as any || {};
+                        if (newNode.styleOverrides.base) {
+                            newNode.styleOverrides.base = restBase;
+                        }
                     }
                 }
 
@@ -451,6 +475,7 @@ export function EditorLayout({
                 {/* Top Bar */}
                 <TopBar
                     documentName={documentKey}
+                    storeSlug={store.slug}
                     onSave={handleSave}
                     onPublish={handlePublish}
                     onGenerate={handleGenerate}
@@ -495,7 +520,7 @@ export function EditorLayout({
                                     {activeLeftTab === 'components' ? (
                                         <ComponentPalette components={registry.components} />
                                     ) : (
-                                        <LayerTree />
+                                        <LayerTree prefabs={previewData?.prefabs} />
                                     )}
                                 </ScrollArea>
                             </div>

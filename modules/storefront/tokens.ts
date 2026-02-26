@@ -14,7 +14,7 @@ import type {
     SafeCSSProperties,
     StorefrontNode,
 } from '@/types/storefront-builder';
-import { isSafeProperty, filterSafeProperties, resolveStyles as resolveV1Styles } from './styles';
+import { isSafeProperty, filterSafeProperties } from './styles';
 
 // ==================== BREAKPOINTS ====================
 
@@ -162,24 +162,57 @@ export function filterSafeOverrides(overrides: SafeCSSProperties): CSSProperties
 // ==================== DUAL-PATH NODE RESOLUTION ====================
 
 /**
+ * Resolve V2 style overrides WITHOUT theme token resolution.
+ * This is used when theme tokens aren't available (e.g., in the builder editor).
+ * It simply applies the raw styleOverrides as-is.
+ */
+export function resolveOverridesOnly(
+    overrides: ResponsiveStyleOverrides | undefined,
+    breakpoint: Breakpoint
+): CSSProperties {
+    if (!overrides) return {};
+
+    const result: CSSProperties = {};
+    const breakpointIndex = BREAKPOINT_ORDER.indexOf(breakpoint);
+
+    // Apply overrides from base up to current breakpoint
+    for (let i = 0; i <= breakpointIndex; i++) {
+        const bp = BREAKPOINT_ORDER[i];
+        const bpOverrides = overrides[bp as keyof ResponsiveStyleOverrides];
+        if (bpOverrides) {
+            const safe = filterSafeOverrides(bpOverrides);
+            Object.assign(result, safe);
+        }
+    }
+
+    return result;
+}
+
+/**
  * Resolve styles for a StorefrontNode, supporting both V1 and V2 formats.
  *
  * Priority:
  * 1. If node.styleTokens or node.styleOverrides exists (V2), use token resolution
- * 2. Otherwise, fall back to node.styles (V1)
+ * 2. If node.styleOverrides exists but no theme, apply overrides directly
+ * 3. Otherwise, fall back to node.styles (V1)
  */
 export function resolveNodeStyles(
     node: StorefrontNode,
     theme: DesignTokenMap | undefined,
     breakpoint: Breakpoint
 ): CSSProperties {
-    // V2: Token-based styles
+    // V2: Token-based styles (if theme available)
     if ((node.styleTokens || node.styleOverrides) && theme) {
         return resolveTokenStyles(node.styleTokens, node.styleOverrides, theme, breakpoint);
     }
 
-    // V1: Legacy StyleObject
-    return resolveV1Styles(node.styles, breakpoint);
+    // V2: Apply overrides directly even without theme (for builder)
+    if (node.styleOverrides) {
+        return resolveOverridesOnly(node.styleOverrides, breakpoint);
+    }
+
+    // No V2, return empty - caller should fall back to V1 styles
+    return {};
 }
 
 /**
@@ -195,14 +228,22 @@ export function resolveAllNodeStyles(
     focus: CSSProperties;
     active: CSSProperties;
 } {
-    // V2
+    // V2 with theme
     if ((node.styleTokens || node.styleOverrides) && theme) {
         return resolveAllTokenStyles(node.styleTokens, node.styleOverrides, theme, breakpoint);
     }
 
-    // V1
-    const { resolveAllStyles } = require('./styles');
-    return resolveAllStyles(node.styles, breakpoint);
+    // V2 without theme - apply overrides directly
+    if (node.styleOverrides) {
+        return {
+            base: resolveOverridesOnly(node.styleOverrides, breakpoint),
+            hover: node.styleOverrides.hover ? filterSafeOverrides(node.styleOverrides.hover) : {},
+            focus: node.styleOverrides.focus ? filterSafeOverrides(node.styleOverrides.focus) : {},
+            active: node.styleOverrides.active ? filterSafeOverrides(node.styleOverrides.active) : {},
+        };
+    }
+
+    return { base: {}, hover: {}, focus: {}, active: {} };
 }
 
 // ==================== VALIDATION ====================

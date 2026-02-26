@@ -47,6 +47,9 @@ export function PaymentMethodsClient({ storeId, configs }: PaymentMethodsClientP
         try {
             const res = await fetch(`/api/admin/payment-configs/${id}`, {
                 method: "DELETE",
+                headers: {
+                    "x-store-id": storeId,
+                },
             });
 
             if (!res.ok) throw new Error("Failed to delete");

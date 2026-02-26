@@ -1,52 +1,67 @@
+import { migrateStringBinding } from '../../binding-ast';
+import { migrateActionRef } from '../../actions/pipeline';
 import type { StorefrontNode } from '@/types/storefront-builder';
 
 /**
- * Schema-aware CartItemCard prefab
- * Displays cart item image, name, variant, quantity, price, and remove button
+ * Cart item card — refreshed UI/UX with clear hierarchy and correct bindings.
  */
 export const cartItemCardPrefab: StorefrontNode = {
     id: 'CartItemCard_default',
     type: 'Container',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             display: 'grid',
-            gridTemplateColumns: '72px 1fr',
-            gap: '0.75rem',
-            padding: '0.75rem',
+            gridTemplateColumns: '104px 1fr 110px',
+            gap: '1rem',
+            padding: '1rem',
+            borderRadius: '1rem',
+            backgroundColor: 'var(--card)',
             border: '1px solid var(--border)',
-            borderRadius: '0.75rem',
-            backgroundColor: 'var(--background)',
-            marginBottom: '0.75rem',
+            boxShadow: '0 14px 38px rgba(0,0,0,0.08)',
+            alignItems: 'center',
+        },
+        hover: {
+            boxShadow: '0 18px 44px rgba(0,0,0,0.12)',
         },
     },
     children: [
+        // Image
         {
-            id: 'cart_item_image_container',
+            id: 'cart_item_image_wrapper',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
-                    width: '72px',
-                    height: '72px',
-                    backgroundColor: 'var(--muted)',
-                    borderRadius: '0.5rem',
+                    width: '104px',
+                    height: '104px',
+                    borderRadius: '0.8rem',
                     overflow: 'hidden',
-                    position: 'relative',
+                    backgroundColor: 'var(--muted)',
                 },
             },
             children: [
                 {
                     id: 'cart_item_image',
                     type: 'Image',
-                    props: {
-                        alt: 'Product',
+                    props: { alt: 'Product' },
+                    bindingMap: {
+                        src: {
+                            kind: 'fallback',
+                            primary: migrateStringBinding('item.variant.images[0].url'),
+                            fallback: {
+                                kind: 'fallback',
+                                primary: migrateStringBinding('item.product.images[0].url'),
+                                fallback: migrateStringBinding('item.product.image')
+                            }
+                        },
+                        alt: {
+                            kind: 'fallback',
+                            primary: migrateStringBinding('item.product.name'),
+                            fallback: { kind: 'literal', value: 'Cart item' }
+                        }
                     },
-                    bindings: {
-                        src: 'item.product.images[0].url || item.product.image || item.variant.images[0].url',
-                        alt: 'item.product.name',
-                    },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             width: '100%',
                             height: '100%',
@@ -56,15 +71,18 @@ export const cartItemCardPrefab: StorefrontNode = {
                 },
             ],
         },
+
+        // Middle: texts + quantity
         {
-            id: 'cart_item_details',
+            id: 'cart_item_content',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.5rem',
+                    gap: '0.45rem',
+                    minWidth: 0,
                 },
             },
             children: [
@@ -72,21 +90,23 @@ export const cartItemCardPrefab: StorefrontNode = {
                     id: 'cart_item_header',
                     type: 'Container',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
-                            alignItems: 'flex-start',
                             justifyContent: 'space-between',
                             gap: '0.5rem',
                         },
                     },
                     children: [
                         {
-                            id: 'cart_item_info',
+                            id: 'cart_item_texts',
                             type: 'Container',
                             props: {},
-                            styles: {
+                            styleOverrides: {
                                 base: {
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.15rem',
                                     minWidth: 0,
                                 },
                             },
@@ -95,13 +115,22 @@ export const cartItemCardPrefab: StorefrontNode = {
                                     id: 'cart_item_name',
                                     type: 'Text',
                                     props: {},
-                                    bindings: {
-                                        text: 'item.product.name',
+                                    bindingMap: {
+                                        text: {
+                                            kind: 'fallback',
+                                            primary: migrateStringBinding('item.product.name'),
+                                            fallback: { kind: 'literal', value: 'Untitled item' }
+                                        },
                                     },
-                                    styles: {
+                                    styleOverrides: {
                                         base: {
-                                            fontWeight: 600,
-                                            lineHeight: 1.2,
+                                            fontWeight: 700,
+                                            fontSize: '1rem',
+                                            lineHeight: 1.3,
+                                            color: 'var(--foreground)',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
                                         },
                                     },
                                 },
@@ -109,12 +138,20 @@ export const cartItemCardPrefab: StorefrontNode = {
                                     id: 'cart_item_variant',
                                     type: 'Text',
                                     props: {},
-                                    bindings: {
-                                        text: 'item.variant.sku || item.variantId',
+                                    bindingMap: {
+                                        text: {
+                                            kind: 'fallback',
+                                            primary: migrateStringBinding('item.variant.sku'),
+                                            fallback: {
+                                                kind: 'fallback',
+                                                primary: migrateStringBinding('item.variant.name'),
+                                                fallback: migrateStringBinding('item.variantId')
+                                            }
+                                        }
                                     },
-                                    styles: {
+                                    styleOverrides: {
                                         base: {
-                                            fontSize: '0.75rem',
+                                            fontSize: '0.85rem',
                                             color: 'var(--muted-foreground)',
                                         },
                                     },
@@ -127,76 +164,97 @@ export const cartItemCardPrefab: StorefrontNode = {
                             props: {
                                 variant: 'ghost',
                                 size: 'icon',
+                                text: 'Remove',
                             },
-                            actions: {
-                                onClick: {
+                            actionMap: {
+                                onClick: migrateActionRef({
                                     actionId: 'REMOVE_FROM_CART',
                                     payloadBindings: {
                                         variantId: 'item.variantId',
                                     },
-                                },
+                                }),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
-                                    padding: '0.25rem',
-                                    height: 'auto',
+                                    height: '32px',
+                                    width: '32px',
                                     color: 'var(--muted-foreground)',
+                                },
+                                hover: {
+                                    color: 'var(--destructive)',
                                 },
                             },
                             children: [
-                                {
-                                    id: 'remove_icon',
-                                    type: 'Icon',
-                                    props: {
-                                        name: 'Trash2',
-                                        size: 16,
-                                    },
-                                },
+                                { id: 'remove_icon', type: 'Icon', props: { name: 'Trash2', size: 16 } },
                             ],
                         },
                     ],
                 },
+
                 {
-                    id: 'cart_item_footer',
+                    id: 'cart_item_meta',
                     type: 'Container',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
-                            justifyContent: 'space-between',
                             alignItems: 'center',
+                            gap: '0.75rem',
+                            flexWrap: 'wrap',
                         },
                     },
                     children: [
                         {
                             id: 'cart_item_quantity',
-                            type: 'Text',
+                            type: 'QuantitySelector',
                             props: {},
-                            bindings: {
-                                text: '"Qty: " + item.quantity',
+                            bindingMap: {
+                                value: migrateStringBinding('item.quantity'),
+                                itemId: migrateStringBinding('item.id'),
                             },
-                            styles: {
-                                base: {
-                                    color: 'var(--muted-foreground)',
-                                    fontSize: '0.75rem',
-                                },
+                            actionMap: {
+                                onChange: migrateActionRef({
+                                    actionId: 'UPDATE_QUANTITY',
+                                    payloadBindings: {
+                                        variantId: 'item.variantId',
+                                        quantity: '$event',
+                                    },
+                                }),
                             },
-                        },
-                        {
-                            id: 'cart_item_price',
-                            type: 'PriceDisplay',
-                            props: {},
-                            bindings: {
-                                price: 'item.lineTotal',
-                                currency: 'store.currency',
-                            },
-                            styles: {
-                                base: {
-                                    fontWeight: 600,
-                                },
-                            },
-                        },
+                        }
                     ],
+                },
+            ],
+        },
+
+        // Right: line total for layout balance
+        {
+            id: 'cart_item_price_side',
+            type: 'Container',
+            props: {},
+            styleOverrides: {
+                base: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '0.4rem',
+                },
+            },
+            children: [
+                {
+                    id: 'cart_item_price_side_value',
+                    type: 'PriceDisplay',
+                    props: {},
+                    bindingMap: {
+                        price: migrateStringBinding('item.lineTotal'),
+                        currency: migrateStringBinding('store.currency'),
+                    },
+                    styleOverrides: {
+                        base: {
+                            fontWeight: 750,
+                            fontSize: '1.05rem',
+                        },
+                    },
                 },
             ],
         },

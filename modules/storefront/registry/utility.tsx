@@ -67,7 +67,7 @@ export function registerUtilityComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -49,6 +49,12 @@ export function CreateDocumentButton({ storeId }: CreateDocumentButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setIsLoading(true);
@@ -67,6 +73,15 @@ export function CreateDocumentButton({ storeId }: CreateDocumentButtonProps) {
         }
 
         setIsLoading(false);
+    }
+
+    if (!mounted) {
+        return (
+            <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                New Document
+            </Button>
+        );
     }
 
     return (

@@ -139,7 +139,7 @@ function createEmptyTree(kind: StorefrontDocKind, key: string): StorefrontNode {
                 id: `${baseId}_section`,
                 type: 'Section',
                 props: {},
-                styles: {
+                styleOverrides: {
                     base: {
                         padding: '2rem',
                         minHeight: '400px',
@@ -153,7 +153,7 @@ function createEmptyTree(kind: StorefrontDocKind, key: string): StorefrontNode {
                             level: 1,
                             text: key.replace(/_/g, ' '),
                         },
-                        styles: {
+                        styleOverrides: {
                             base: {
                                 marginBottom: '1rem',
                             },
@@ -165,7 +165,7 @@ function createEmptyTree(kind: StorefrontDocKind, key: string): StorefrontNode {
                         props: {
                             text: 'Start building your content here...',
                         },
-                        styles: {
+                        styleOverrides: {
                             base: {
                                 color: 'var(--muted-foreground)',
                             },

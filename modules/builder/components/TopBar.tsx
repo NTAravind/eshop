@@ -28,6 +28,7 @@ import { PreviewProductSelector } from './PreviewProductSelector';
 
 interface TopBarProps {
     documentName?: string;
+    storeSlug?: string;
     onSave?: () => Promise<void>;
     onPublish?: () => Promise<void>;
     onGenerate?: () => Promise<void>;
@@ -40,6 +41,7 @@ interface TopBarProps {
 
 export function TopBar({
     documentName = 'Untitled',
+    storeSlug,
     onSave,
     onPublish,
     onGenerate,
@@ -158,6 +160,24 @@ export function TopBar({
                         <Redo2 className="h-4 w-4" />
                     </Button>
                 </div>
+
+                <div className="h-4 w-px bg-border" />
+
+                {/* Go To Store */}
+                {storeSlug && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-1 bg-background text-foreground hover:bg-muted"
+                        title="View Live Store"
+                    >
+                        <a href={`/store/${storeSlug}`} target="_blank" rel="noopener noreferrer">
+                            <Sparkles className="h-4 w-4" />
+                            Go to Store
+                        </a>
+                    </Button>
+                )}
 
                 <div className="h-4 w-px bg-border" />
 

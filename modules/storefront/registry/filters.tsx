@@ -25,12 +25,34 @@ export interface FilterMenuProps {
 export function FilterMenu({ title = 'Filters', style, className }: FilterMenuProps) {
     const { context } = useRuntimeContext();
     const router = useRouter();
-    const facets = context.facets?.facets || [];
-    const searchParams = context.route.searchParams;
 
-    if (facets.length === 0) {
-        return null;
-    }
+    // Fallback facets for builder/preview when no data is provided
+    const facets = (context.facets?.facets && context.facets.facets.length > 0)
+        ? context.facets.facets
+        : [
+            {
+                id: 'facet_color',
+                code: 'color',
+                name: 'Color',
+                values: [
+                    { id: 'color_black', value: 'black', label: 'Black' },
+                    { id: 'color_white', value: 'white', label: 'White' },
+                    { id: 'color_blue', value: 'blue', label: 'Blue' },
+                ],
+            },
+            {
+                id: 'facet_size',
+                code: 'size',
+                name: 'Size',
+                values: [
+                    { id: 'size_s', value: 'S', label: 'Small' },
+                    { id: 'size_m', value: 'M', label: 'Medium' },
+                    { id: 'size_l', value: 'L', label: 'Large' },
+                ],
+            },
+        ];
+
+    const searchParams = context.route?.searchParams || {};
 
     const handleFilterChange = (code: string, value: string, checked: boolean) => {
         const currentParams = new URLSearchParams();
@@ -125,8 +147,22 @@ interface NavFilterMenuProps extends BaseComponentProps {
 export function NavFilterMenu({ label = 'Filters', style, className }: NavFilterMenuProps) {
     const { context } = useRuntimeContext();
     const router = useRouter();
-    const facets = context.facets?.facets || [];
-    const searchParams = context.route.searchParams;
+
+    const facets = (context.facets?.facets && context.facets.facets.length > 0)
+        ? context.facets.facets
+        : [
+            {
+                id: 'facet_category',
+                code: 'category',
+                name: 'Category',
+                values: [
+                    { id: 'cat_new', value: 'new', label: 'New' },
+                    { id: 'cat_sale', value: 'sale', label: 'On Sale' },
+                ],
+            },
+        ];
+
+    const searchParams = context.route?.searchParams || {};
     const slug = context.store?.slug;
 
     if (facets.length === 0) {
@@ -268,7 +304,7 @@ export function registerFilterComponents() {
         },
         defaults: {
             props: { label: 'Filters' },
-            styles: {},
+            styleOverrides: {},
         },
     });
 }

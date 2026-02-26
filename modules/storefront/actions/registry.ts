@@ -81,6 +81,16 @@ export const actionRegistry = {
         bindablePayload: [] as const,
     },
 
+    opencartsidebar: {
+        displayName: 'Open Cart Sidebar (Legacy)',
+        description: 'Toggle the cart sidebar visibility',
+        payloadSchema: z.object({
+            open: z.boolean().default(true),
+        }),
+        bindablePayload: [] as const,
+    },
+
+
     GO_TO_CHECKOUT: {
         displayName: 'Go to Checkout',
         description: 'Navigate the user to the checkout page',
@@ -129,6 +139,16 @@ export const actionRegistry = {
         }),
         bindablePayload: ['data'] as const,
     },
+
+    OAUTH_LOGIN: {
+        displayName: 'OAuth Login',
+        description: 'Sign in with an OAuth provider',
+        payloadSchema: z.object({
+            provider: z.enum(['google', 'instagram']),
+            callbackUrl: z.string().optional(),
+        }),
+        bindablePayload: ['callbackUrl'] as const,
+    },
 } as const;
 
 export type ActionRegistry = typeof actionRegistry;
@@ -154,7 +174,7 @@ export function validatePayload(
     }
 
     try {
-        const data = definition.payloadSchema.parse(payload);
+        const data = definition.payloadSchema.parse(payload || {});
         return { valid: true, data };
     } catch (err) {
         if (err instanceof z.ZodError) {

@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 
 const formSchema = z.object({
     host: z.string().min(1, 'Host is required'),
-    port: z.coerce.number().min(1, 'Port is required'),
+    port: z.number().min(1, 'Port is required'),
     user: z.string().min(1, 'Username is required'),
     pass: z.string().min(1, 'Password is required'),
     from: z.string().email('Invalid email address'),
@@ -116,7 +116,15 @@ export function EmailConfigDialog() {
                                     <FormItem>
                                         <FormLabel>Port</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="465" {...field} />
+                                            <Input
+                                                type="number"
+                                                placeholder="465"
+                                                {...field}
+                                                onChange={e => {
+                                                    const val = parseInt(e.target.value, 10);
+                                                    field.onChange(isNaN(val) ? '' : val);
+                                                }}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -145,7 +153,7 @@ export function EmailConfigDialog() {
                                 <FormItem>
                                     <FormLabel>Password / App Key</FormLabel>
                                     <FormControl>
-                                        <Input type="password" placeholder="••••••••" {...field} />
+                                        <Input type="password" placeholder="••••••••" {...field} value={field.value || ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

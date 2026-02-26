@@ -63,7 +63,7 @@ export function PaymentConfigForm({ storeId, existingConfig, onSuccess }: Paymen
 
             const res = await fetch(url, {
                 method,
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "x-store-id": storeId },
                 body: JSON.stringify(body),
             });
 

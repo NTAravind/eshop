@@ -1,4 +1,6 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
+import { migrateActionRef } from '../actions/pipeline';
 
 /**
  * Default PDP template
@@ -12,7 +14,7 @@ export const defaultPdpTemplate: StorefrontNode = {
             id: 'pdp_main',
             type: 'Row',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     flexDirection: 'column',
@@ -29,7 +31,7 @@ export const defaultPdpTemplate: StorefrontNode = {
                     id: 'pdp_gallery',
                     type: 'Column',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             flex: 1,
                         },
@@ -41,11 +43,11 @@ export const defaultPdpTemplate: StorefrontNode = {
                             props: {
                                 alt: 'Product image',
                             },
-                            bindings: {
-                                src: 'selectedVariant.images[0].url',
-                                alt: 'product.name',
+                            bindingMap: {
+                                src: migrateStringBinding('selectedVariant.images[0].url'),
+                                alt: migrateStringBinding('product.name'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     width: '100%',
                                     aspectRatio: '1',
@@ -61,7 +63,7 @@ export const defaultPdpTemplate: StorefrontNode = {
                     id: 'pdp_details',
                     type: 'Column',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             flex: 1,
                         },
@@ -73,27 +75,27 @@ export const defaultPdpTemplate: StorefrontNode = {
                             props: {
                                 level: 1,
                             },
-                            bindings: {
-                                text: 'product.name',
+                            bindingMap: {
+                                text: migrateStringBinding('product.name'),
                             },
                         },
                         {
                             id: 'pdp_price',
                             type: 'PriceDisplay',
                             props: {},
-                            bindings: {
-                                price: 'selectedVariant.price',
-                                currency: 'store.currency',
+                            bindingMap: {
+                                price: migrateStringBinding('selectedVariant.price'),
+                                currency: migrateStringBinding('store.currency'),
                             },
                         },
                         {
                             id: 'pdp_description',
                             type: 'Text',
                             props: {},
-                            bindings: {
-                                text: 'product.description',
+                            bindingMap: {
+                                text: migrateStringBinding('product.description'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     marginTop: '1rem',
                                     color: 'var(--muted-foreground)',
@@ -104,16 +106,16 @@ export const defaultPdpTemplate: StorefrontNode = {
                             id: 'pdp_variants',
                             type: 'VariantSelector',
                             props: {},
-                            bindings: {
-                                variants: 'product.variants',
-                                selected: 'selectedVariant.id',
+                            bindingMap: {
+                                variants: migrateStringBinding('product.variants'),
+                                selected: migrateStringBinding('selectedVariant.id'),
                             },
                         },
                         {
                             id: 'pdp_actions',
                             type: 'Row',
                             props: {},
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     display: 'flex',
                                     gap: '1rem',
@@ -127,8 +129,8 @@ export const defaultPdpTemplate: StorefrontNode = {
                                     props: {
                                         text: 'Add to Cart',
                                     },
-                                    actions: {
-                                        onClick: {
+                                    actionMap: {
+                                        onClick: migrateActionRef({
                                             actionId: 'ADD_TO_CART',
                                             payloadBindings: {
                                                 variantId: 'selectedVariant.id',
@@ -137,7 +139,7 @@ export const defaultPdpTemplate: StorefrontNode = {
                                                 quantity: 1,
                                                 openCart: true,
                                             },
-                                        },
+                                        }),
                                     },
                                 },
                                 {
@@ -146,8 +148,8 @@ export const defaultPdpTemplate: StorefrontNode = {
                                     props: {
                                         text: 'Buy Now',
                                     },
-                                    actions: {
-                                        onClick: {
+                                    actionMap: {
+                                        onClick: migrateActionRef({
                                             actionId: 'BUY_NOW',
                                             payloadBindings: {
                                                 variantId: 'selectedVariant.id',
@@ -155,7 +157,7 @@ export const defaultPdpTemplate: StorefrontNode = {
                                             payload: {
                                                 quantity: 1,
                                             },
-                                        },
+                                        }),
                                     },
                                 },
                             ],
@@ -169,7 +171,7 @@ export const defaultPdpTemplate: StorefrontNode = {
             id: 'pdp_similar',
             type: 'Section',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '2rem',
                     marginTop: '2rem',
@@ -190,8 +192,8 @@ export const defaultPdpTemplate: StorefrontNode = {
                     props: {
                         columns: 4,
                     },
-                    bindings: {
-                        products: 'similarProducts',
+                    bindingMap: {
+                        products: migrateStringBinding('similarProducts'),
                     },
                 },
             ],

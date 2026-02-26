@@ -27,20 +27,11 @@ import { usePathname, useSearchParams } from 'next/navigation';
 
 
 
-// Initialize registry on client-side
-if (typeof window !== 'undefined') {
-    initializeRegistry();
-}
+// Initialize registry for both SSR and CSR
+initializeRegistry();
 
 interface StorefrontPageProps {
-    store: {
-        id: string;
-        name: string;
-        slug: string;
-        currency: string;
-        requirePhoneNumber?: boolean;
-        logoUrl?: string;
-    };
+    store: StoreContext;
     layout?: StorefrontNode;
     page: StorefrontNode;
     settings?: SettingsContext;

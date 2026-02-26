@@ -330,7 +330,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { maxWidth: 'xl' },
-            styles: { base: { padding: '1rem' } },
+            styleOverrides: { base: { padding: '1rem' } },
             children: [],
         },
     });
@@ -351,7 +351,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { as: 'section' },
-            styles: { base: { padding: '2rem 0' } },
+            styleOverrides: { base: { padding: '2rem 0' } },
             children: [],
         },
     });
@@ -379,7 +379,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { gap: '1rem', align: 'stretch', justify: 'start' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -406,7 +406,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { gap: '1rem', align: 'stretch', justify: 'start' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -424,7 +424,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { columns: 3, gap: '1rem' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -457,7 +457,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { direction: 'row', gap: '1rem' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -474,7 +474,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { size: '1rem' },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -494,7 +494,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: { orientation: 'horizontal' },
-            styles: { base: { margin: '1rem 0' } },
+            styleOverrides: { base: { margin: '1rem 0' } },
         },
     });
 
@@ -507,7 +507,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: {},
-            styles: { base: { height: '64px' } },
+            styleOverrides: { base: { height: '64px' } },
             children: [],
         },
     });
@@ -525,7 +525,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { copyright: '© 2024 Your Store. All rights reserved.' },
-            styles: { base: { padding: '2rem' } },
+            styleOverrides: { base: { padding: '2rem' } },
             children: [],
         },
     });
@@ -539,7 +539,7 @@ export function registerLayoutComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });

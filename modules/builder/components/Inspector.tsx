@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 
 import React, { useState, useMemo } from 'react';
 import { useEditorStore, selectSelectedNode } from '@/modules/builder/editor-store';
+import { applyCommand } from '@/modules/builder/commands';
 import { findNodeById } from '@/shared/utils/tree';
 import { mergeStyles } from '@/modules/storefront/styles';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,10 +35,8 @@ import { Palette, Trash2, ArrowUp, ArrowDown, GripVertical } from 'lucide-react'
 import type { StorefrontNode, StyleObject, ThemeVars, PrefabOverrides } from '@/types/storefront-builder';
 import { hslToHex } from '@/shared/utils/color-utils';
 import { cn } from '@/shared/utils';
-
 import { TweakcnThemeEditor } from './TweakcnThemeEditor';
-import { BindingsPanel } from './BindingsPanel';
-import { ActionsPanel } from './ActionsPanel';
+import { PrefabPicker } from './inputs/PrefabPicker';
 import {
     DndContext,
     closestCenter,
@@ -396,6 +395,53 @@ function SortableChildItem({ child, removeNode, select }: SortableChildItemProps
 }
 
 /**
+ * Prefab Instance Controls — shown when a Prefab node is selected
+ */
+function PrefabInstanceControls({ node }: { node: StorefrontNode }) {
+    const tree = useEditorStore((s) => s.tree);
+    const updateTree = useEditorStore((s) => s.updateTree);
+    const selectNode = useEditorStore((s) => s.select);
+    const prefabKey = node.props.prefabKey as string | undefined;
+    const prefabVersion = (node.props.prefabVersion as string | undefined) ?? 'latest';
+
+    const handleDetach = () => {
+        if (!tree) return;
+        const result = applyCommand(tree, { type: 'DETACH_PREFAB', instanceNodeId: node.id });
+        if (result.success) {
+            updateTree(result.snapshot, 'Detach prefab instance');
+        } else {
+            console.warn('[Builder] Detach failed:', result.warnings);
+        }
+    };
+
+    return (
+        <div className="space-y-3 rounded-md border border-dashed border-primary/40 p-3 bg-primary/5">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-primary">Prefab Instance</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted font-mono">
+                    v{prefabVersion}
+                </span>
+            </div>
+
+            {prefabKey && (
+                <div className="text-xs text-muted-foreground">
+                    Source: <span className="font-mono">{prefabKey}</span>
+                </div>
+            )}
+
+            <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={handleDetach}
+            >
+                Detach Instance
+            </Button>
+        </div>
+    );
+}
+
+/**
  * Children Panel with Drag and Drop
  */
 function ChildrenPanel({ node }: { node: StorefrontNode }) {
@@ -554,6 +600,13 @@ function PropertiesPanel({ node, onPropChange }: PropertiesPanelProps) {
                     onChange={(value) => onPropChange(propName, value)}
                 />
             )}
+            {control.type === 'prefab' && (
+                <PrefabPicker
+                    value={(node.props[propName] as string) || ''}
+                    onChange={(value) => onPropChange(propName, value)}
+                    prefabType={control.prefabType}
+                />
+            )}
         </div>
     );
 
@@ -617,98 +670,93 @@ function PropertiesPanel({ node, onPropChange }: PropertiesPanelProps) {
         );
     }
 
-    // Fallback for legacy/missing definitions
-    const commonProps: { name: string; type: 'text' | 'textarea' | 'number' | 'boolean' | 'select'; options?: string[] }[] = [];
-
-    // Add type-specific props
-    switch (node.type) {
-        case 'Heading':
-        case 'Text':
-            commonProps.push({ name: 'text', type: 'textarea' });
-            if (node.type === 'Heading') {
-                commonProps.push({ name: 'level', type: 'select', options: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] });
-            }
-            break;
-        case 'Button':
-        case 'Link':
-            commonProps.push({ name: 'text', type: 'text' });
-            commonProps.push({ name: 'href', type: 'text' });
-            break;
-        case 'Image':
-            commonProps.push({ name: 'src', type: 'text' });
-            commonProps.push({ name: 'alt', type: 'text' });
-            break;
-    }
+    // Fallback: generic props inspector — auto-generates editable fields from node.props
+    const propsEntries = Object.entries(node.props).filter(
+        ([key]) => !key.startsWith('data-') && key !== 'overrides' && key !== 'prefabKey' && key !== 'prefabVersion' && key !== 'slotContent'
+    );
 
     return (
         <div className="space-y-4">
-            <div className="text-sm font-medium flex items-center gap-2">
+            <div className="text-sm font-medium flex items-center gap-2 border-b pb-2">
                 <span className="text-muted-foreground">Type:</span>
                 <span>{node.type}</span>
             </div>
 
-            {commonProps.map(({ name, type, options }) => (
-                <div key={name} className="space-y-2">
-                    <Label htmlFor={name} className="text-xs capitalize">
-                        {name}
-                    </Label>
-                    {type === 'text' && (
-                        <Input
-                            id={name}
-                            value={(node.props[name] as string) || ''}
-                            onChange={(e) => onPropChange(name, e.target.value)}
-                        />
-                    )}
-                    {type === 'textarea' && (
-                        <Textarea
-                            id={name}
-                            value={(node.props[name] as string) || ''}
-                            onChange={(e) => onPropChange(name, e.target.value)}
-                            rows={3}
-                        />
-                    )}
-                    {type === 'number' && (
-                        <Input
-                            id={name}
-                            type="number"
-                            value={(node.props[name] as number) || 0}
-                            onChange={(e) => onPropChange(name, Number(e.target.value))}
-                        />
-                    )}
-                    {type === 'boolean' && (
-                        <Switch
-                            id={name}
-                            checked={(node.props[name] as boolean) || false}
-                            onCheckedChange={(checked) => onPropChange(name, checked)}
-                        />
-                    )}
-                    {type === 'select' && options && (
-                        <Select
-                            value={(node.props[name] as string) || options[0]}
-                            onValueChange={(value) => onPropChange(name, value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {options.map((opt) => (
-                                    <SelectItem key={opt} value={opt}>
-                                        {opt}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
+            {/* Prefab Instance Controls */}
+            {node.type === 'Prefab' && (
+                <PrefabInstanceControls node={node} />
+            )}
+
+            {/* Generic Props */}
+            {propsEntries.length > 0 && (
+                <Accordion type="multiple" defaultValue={['Props', 'Info']} className="w-full">
+                    <AccordionItem value="Props">
+                        <AccordionTrigger className="text-sm py-2">Properties</AccordionTrigger>
+                        <AccordionContent className="space-y-3 pt-2">
+                            {propsEntries.map(([key, value]) => (
+                                <div key={key} className="space-y-1">
+                                    <Label htmlFor={key} className="text-xs font-mono">{key}</Label>
+                                    {typeof value === 'boolean' ? (
+                                        <Switch
+                                            id={key}
+                                            checked={value}
+                                            onCheckedChange={(checked) => onPropChange(key, checked)}
+                                        />
+                                    ) : typeof value === 'number' ? (
+                                        <Input
+                                            id={key}
+                                            type="number"
+                                            value={value}
+                                            onChange={(e) => onPropChange(key, Number(e.target.value))}
+                                        />
+                                    ) : typeof value === 'string' ? (
+                                        value.length > 80 ? (
+                                            <Textarea
+                                                id={key}
+                                                value={value}
+                                                onChange={(e) => onPropChange(key, e.target.value)}
+                                                rows={3}
+                                            />
+                                        ) : (
+                                            <Input
+                                                id={key}
+                                                value={value}
+                                                onChange={(e) => onPropChange(key, e.target.value)}
+                                            />
+                                        )
+                                    ) : (
+                                        <Input
+                                            id={key}
+                                            value={JSON.stringify(value)}
+                                            readOnly
+                                            className="font-mono text-xs bg-muted/50"
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </AccordionContent>
+                    </AccordionItem>
+
+                    <AccordionItem value="Info">
+                        <AccordionTrigger className="text-sm py-2">Info</AccordionTrigger>
+                        <AccordionContent className="space-y-2 pt-2">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">ID</Label>
+                                <Input value={node.id} readOnly className="font-mono text-xs bg-muted/50" />
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            )}
+
+            {propsEntries.length === 0 && (
+                <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">ID</Label>
+                    <Input value={node.id} readOnly className="font-mono text-xs bg-muted/50" />
                 </div>
-            ))}
+            )}
 
-            {/* ID field (read-only) */}
-            <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">ID</Label>
-                <Input value={node.id} readOnly className="font-mono text-xs" />
-            </div>
-
-            {/* Children Management Logic for fallback */}
+            {/* Children Management */}
             <div className="pt-4 border-t">
                 <Label className="text-xs font-semibold mb-2 block">Children</Label>
                 <ChildrenPanel node={node} />
@@ -738,8 +786,8 @@ function StylesPanel({ node, onStyleChange }: StylesPanelProps) {
     const breakpointLabel =
         activeBreakpoint === 'base' ? 'Desktop' : activeBreakpoint === 'md' ? 'Tablet' : 'Mobile';
 
-    const baseStyles = node.styles?.base || {};
-    const bpStyles = (node.styles?.[activeBreakpoint] || {}) as Record<string, string>;
+    const baseStyles = node.styleOverrides?.base || {};
+    const bpStyles = (node.styleOverrides?.[activeBreakpoint] || {}) as Record<string, string>;
 
     // For display: merge base + breakpoint-specific (breakpoint overrides base)
     const mergedStyles: Record<string, string> = { ...(baseStyles as Record<string, string>), ...bpStyles };

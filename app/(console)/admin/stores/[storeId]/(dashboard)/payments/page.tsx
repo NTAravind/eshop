@@ -39,6 +39,7 @@ export default async function PaymentsPage({
                 <Separator />
 
                 <PaymentsClient
+                    storeId={storeId}
                     data={paymentStats.payments}
                     configs={configsResult}
                     stats={stats}

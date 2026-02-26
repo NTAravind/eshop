@@ -309,11 +309,6 @@ export function resolveNodeBindings(
         return { ...props, ...resolved };
     }
 
-    // V1: Fall back to legacy string bindings
-    if (node.bindings && Object.keys(node.bindings).length > 0) {
-        return resolveBindings(props, node.bindings, context);
-    }
-
     return props;
 }
 

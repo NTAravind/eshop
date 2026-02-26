@@ -1,4 +1,5 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../binding-ast';
 
 /**
  * Default collection/shop page with filters and product grid
@@ -12,7 +13,7 @@ export const defaultCollectionPage: StorefrontNode = {
             id: 'collection_header',
             type: 'Section',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '2rem',
                     backgroundColor: 'var(--muted)',
@@ -43,7 +44,7 @@ export const defaultCollectionPage: StorefrontNode = {
             id: 'collection_main',
             type: 'Row',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     display: 'flex',
                     gap: '2rem',
@@ -56,7 +57,7 @@ export const defaultCollectionPage: StorefrontNode = {
                     id: 'collection_sidebar',
                     type: 'Column',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             width: '280px',
                             flexShrink: 0,
@@ -71,9 +72,9 @@ export const defaultCollectionPage: StorefrontNode = {
                             id: 'filter_menu',
                             type: 'CollectionFilters',
                             props: {},
-                            bindings: {
-                                facets: 'facets.facets',
-                                activeFilters: 'uiState.activeFilters',
+                            bindingMap: {
+                                facets: migrateStringBinding('facets.facets'),
+                                activeFilters: migrateStringBinding('uiState.activeFilters'),
                             },
                         },
                     ],
@@ -83,7 +84,7 @@ export const defaultCollectionPage: StorefrontNode = {
                     id: 'collection_content',
                     type: 'Column',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             flex: 1,
                         },
@@ -93,7 +94,7 @@ export const defaultCollectionPage: StorefrontNode = {
                             id: 'collection_toolbar',
                             type: 'Row',
                             props: {},
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     display: 'flex',
                                     justifyContent: 'space-between',
@@ -108,8 +109,8 @@ export const defaultCollectionPage: StorefrontNode = {
                                     props: {
                                         text: 'Showing products',
                                     },
-                                    bindings: {
-                                        text: 'collection.total',
+                                    bindingMap: {
+                                        text: migrateStringBinding('collection.total'),
                                     },
                                 },
                                 {
@@ -125,8 +126,8 @@ export const defaultCollectionPage: StorefrontNode = {
                             props: {
                                 columns: 3,
                             },
-                            bindings: {
-                                products: 'collection.products',
+                            bindingMap: {
+                                products: migrateStringBinding('collection.products'),
                             },
                         },
                     ],

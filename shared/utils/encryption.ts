@@ -1,4 +1,7 @@
-import crypto from 'crypto';
+
+
+import 'server-only';
+import crypto from 'node:crypto';
 
 const ALGORITHM = 'aes-256-cbc';
 const KEY_LENGTH = 32; // 256 bits

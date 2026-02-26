@@ -104,3 +104,193 @@ Returns a list of active product schemas.
 
 ### Get Schema
 `GET /api/stores/[storeId]/product-schemas/[schemaId]`
+
+## Storefront Actions
+
+These actions are available to the storefront builder and can be triggered by UI components.
+
+ **Response Format:**
+All actions return a Promise that resolves to an object with the following structure:
+```json
+{
+  "success": "boolean",
+  "data": "any (optional, depends on action)",
+  "error": "string (optional, if success is false)"
+}
+```
+
+### ADD_TO_CART
+Add a product variant to the shopping cart.
+
+**Payload:**
+```json
+{
+  "variantId": "string (optional)",
+  "quantity": "number (default: 1)",
+  "openCart": "boolean (default: true)"
+}
+```
+
+**Returns:** Updated cart object.
+
+### REMOVE_FROM_CART
+Remove an item from the shopping cart.
+
+**Payload:**
+```json
+{
+  "variantId": "string (required)"
+}
+```
+
+**Returns:** Updated cart object.
+
+### UPDATE_QUANTITY
+Update the quantity of a cart item.
+
+**Payload:**
+```json
+{
+  "variantId": "string (required)",
+  "quantity": "number (min: 0)"
+}
+```
+
+**Returns:** Updated cart object.
+
+### BUY_NOW
+Add item and go directly to checkout.
+
+**Payload:**
+```json
+{
+  "variantId": "string (optional)",
+  "quantity": "number (default: 1)"
+}
+```
+
+**Returns:**
+```json
+{
+  "redirect": "/checkout",
+  ...cartData
+}
+```
+
+### SELECT_VARIANT
+Select a product variant.
+
+**Payload:**
+```json
+{
+  "variantId": "string (required)"
+}
+```
+
+### APPLY_DISCOUNT
+Apply a discount code to the cart.
+
+**Payload:**
+```json
+{
+  "code": "string (optional)"
+}
+```
+
+**Returns:**
+```json
+{
+  "applied": "boolean",
+  "code": "string"
+}
+```
+
+### SET_DELIVERY_MODE
+Toggle between delivery and pickup.
+
+**Payload:**
+```json
+{
+  "mode": "'DELIVERY' | 'PICKUP'"
+}
+```
+
+### OPEN_CART_SIDEBAR
+Toggle the cart sidebar visibility.
+
+**Payload:**
+```json
+{
+  "open": "boolean (default: true)"
+}
+```
+
+### GO_TO_CHECKOUT
+Navigate the user to the checkout page.
+
+**Payload:**
+```json
+{
+  "storeSlug": "string (optional)"
+}
+```
+
+### PLACE_ORDER
+Submit the current checkout and place the order.
+
+**Payload:**
+```json
+{
+  "checkoutData": "object (optional)"
+}
+```
+
+**Returns:**
+```json
+{
+  "orderId": "string"
+}
+```
+
+### NAVIGATE
+Navigate to a different page.
+
+**Payload:**
+```json
+{
+  "to": "string (required)",
+  "params": "object (string key-values)",
+  "replace": "boolean (default: false)"
+}
+```
+
+### UPDATE_UI_STATE
+Update client-side UI state.
+
+**Payload:**
+```json
+{
+  "key": "string (required)",
+  "value": "any"
+}
+```
+
+### SUBMIT_FORM
+Submit a form (checkout, login, etc.).
+
+**Payload:**
+```json
+{
+  "formType": "'checkout' | 'login' | 'signup' | 'profile' | 'contact'",
+  "data": "object"
+}
+```
+
+**Returns:**
+```json
+{
+  "formType": "string",
+  "submitted": "boolean"
+}
+```
+

@@ -1,20 +1,31 @@
 'use client';
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { useEditorStore } from '@/modules/builder/editor-store';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import {
+    Monitor,
+    Tablet,
+    Smartphone,
+    MousePointer2,
+    Zap,
+    Hand
+} from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Monitor, Tablet, Smartphone, X, Link as LinkIcon } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+import { TypographySection } from './style/sections/TypographySection';
+import { DimensionsSection } from './style/sections/DimensionsSection';
+import { BackgroundSection } from './style/sections/BackgroundSection';
+import { BorderSection } from './style/sections/BorderSection';
+import { EffectsSection } from './style/sections/EffectsSection';
+
 import {
     resolveTokenPath,
-    filterSafeOverrides,
     Breakpoint
 } from '@/modules/storefront/tokens';
-import { TokenPicker } from './TokenPicker';
 import { findNodeById } from '@/shared/utils/tree';
-import type { StyleObject, SafeCSSProperties, DesignTokenMap } from '@/types/storefront-builder';
+import type { DesignTokenMap } from '@/types/storefront-builder';
 
 interface StylePanelProps {
     nodeId: string;
@@ -28,205 +39,284 @@ const BREAKPOINTS: { id: Breakpoint; icon: React.ElementType; label: string }[] 
     { id: 'xl', icon: Monitor, label: 'XL' },
 ];
 
-const COMMON_PROPS = {
-    layout: ['display', 'flexDirection', 'alignItems', 'justifyContent', 'gap', 'padding', 'margin'],
-    typography: ['color', 'fontSize', 'fontWeight', 'textAlign'],
-    appearance: ['backgroundColor', 'borderRadius', 'border', 'boxShadow', 'opacity'],
-    dimensions: ['width', 'height', 'minWidth', 'minHeight'],
-};
+type ElementState = 'default' | 'hover' | 'focus' | 'active';
+
+const STATES: { id: ElementState; icon: React.ElementType; label: string }[] = [
+    { id: 'default', icon: Monitor, label: 'Default' },
+    { id: 'hover', icon: MousePointer2, label: 'Hover' },
+    { id: 'focus', icon: Zap, label: 'Focus' },
+    { id: 'active', icon: Hand, label: 'Pressed' },
+];
 
 export function StylePanel({ nodeId }: StylePanelProps) {
-    // Subscribe only to the specific properties we need
+    // 1. Efficient Store Selection
     const tree = useEditorStore((s) => s.tree);
-    const nodeData = React.useMemo(() => {
+    const theme = useEditorStore((s) => s.theme);
+    const updateNode = useEditorStore((s) => s.updateNode);
+
+    const nodeData = useMemo(() => {
         if (!tree) return null;
         const n = findNodeById(tree, nodeId);
         if (!n) return null;
         return {
             id: n.id,
             type: n.type,
-            styleTokens: n.styleTokens,
-            styleOverrides: n.styleOverrides
+            styleTokens: n.styleTokens || {},
+            styleOverrides: n.styleOverrides || {},
+            // Include V1 legacy styles for bridging
+            legacyStyles: n.styles || {},
         };
     }, [tree, nodeId]);
-    const theme = useEditorStore((s) => s.theme);
-    const updateNode = useEditorStore((s) => s.updateNode);
 
-    // Reconstruct minimal node for rendering
-    const node = nodeData;
+    // 2. Local View State
+    const [activeBreakpoint, setActiveBreakpoint] = useState<Breakpoint>('base');
+    const [activeState, setActiveState] = useState<ElementState>('default');
 
-    // Local state for active breakpoint tab
-    const [activeBreakpoint, setActiveBreakpoint] = React.useState<Breakpoint>('base');
+    // 3. Compute Effective Styles & Current Layer
+    const { effectiveStyles, currentLayerOverrides, hasV2System } = useMemo(() => {
+        if (!nodeData) return { effectiveStyles: {}, currentLayerOverrides: {}, hasV2System: false };
 
-    if (!node) return <div className="p-4 text-sm text-muted-foreground">Select a node to edit styles.</div>;
+        const tokens = nodeData.styleTokens || {};
+        const overrides = nodeData.styleOverrides || {};
+        const legacy = nodeData.legacyStyles || {};
+        const baseOverrides = overrides.base || {};
 
-    // Helper to update a style token
+        // Check if node has actual V2 style system (not legacy)
+        const hasV2 = Object.keys(tokens).length > 0 || Object.keys(overrides).length > 0;
+
+        // Start with resolved tokens (if theme available)
+        const resolved: Record<string, any> = {};
+        if (theme) {
+            Object.entries(tokens).forEach(([prop, path]) => {
+                if (path) {
+                    resolved[prop] = resolveTokenPath(path, theme as unknown as DesignTokenMap);
+                }
+            });
+        }
+
+        // Apply Base Overrides (always active as foundation)
+        Object.assign(resolved, baseOverrides);
+
+        // Determine current layer object
+        let layer: Record<string, any> = {};
+
+        if (activeState !== 'default') {
+            // State Mode (Hover/Focus/Active)
+            layer = overrides[activeState] || {};
+            Object.assign(resolved, layer);
+        } else {
+            // Breakpoint Mode
+            if (activeBreakpoint !== 'base') {
+                layer = overrides[activeBreakpoint] || {};
+                Object.assign(resolved, layer);
+            } else {
+                layer = baseOverrides;
+            }
+        }
+
+        // If no V2 system, fall back to V1 legacy styles
+        // Only use legacy if there's no V2 at all
+        if (!hasV2) {
+            const legacyBase = legacy.base || {};
+            Object.assign(resolved, legacyBase);
+            layer = legacyBase;
+        }
+
+        return {
+            effectiveStyles: resolved,
+            currentLayerOverrides: layer,
+            hasV2System: hasV2
+        };
+    }, [nodeData, theme, activeBreakpoint, activeState]);
+
+    // 4. Update Handlers
+    const handleStyleUpdate = useCallback((property: string, value: any) => {
+        if (!nodeData) return;
+
+        // Only use V2 if there's already a V2 system (styleTokens or styleOverrides)
+        // Don't migrate legacy styles to V2 automatically - that causes issues
+        const hasV2 = hasV2System;
+
+        if (hasV2) {
+            // V2 update
+            const newOverrides = { ...(nodeData.styleOverrides || {}) };
+
+            let targetKey: string = activeBreakpoint;
+            if (activeState !== 'default') {
+                targetKey = activeState;
+            }
+
+            // Initialize target layer if missing, or clone it if it exists
+            const currentLayer = newOverrides[targetKey as keyof typeof newOverrides];
+            // @ts-ignore
+            newOverrides[targetKey] = currentLayer ? { ...currentLayer } : {};
+
+            // Update value
+            // @ts-ignore
+            newOverrides[targetKey][property] = value;
+
+            // If value is empty, cleanup
+            if (value === '' || value === undefined || value === null) {
+                // @ts-ignore
+                delete newOverrides[targetKey][property];
+                // @ts-ignore
+                if (Object.keys(newOverrides[targetKey]).length === 0) {
+                    // @ts-ignore
+                    delete newOverrides[targetKey];
+                }
+            }
+
+            updateNode(nodeId, { styleOverrides: newOverrides });
+        } else {
+            // Legacy V1 update - write to styles directly
+            const newStyles = {
+                ...nodeData.legacyStyles,
+                base: {
+                    ...nodeData.legacyStyles?.base,
+                    [property]: value
+                }
+            };
+            updateNode(nodeId, { styles: newStyles });
+        }
+    }, [nodeData, hasV2System, activeBreakpoint, activeState, nodeId, updateNode]);
+
     const handleTokenChange = useCallback((property: string, tokenPath: string) => {
-        const newStyleTokens = { ...node?.styleTokens };
+        if (!nodeData) return;
+        const newStyleTokens = { ...(nodeData.styleTokens || {}) };
+
         if (tokenPath) {
             newStyleTokens[property] = tokenPath;
+            // Clear override in current layer if in default/base to allow token to show
+            if (activeState === 'default' && activeBreakpoint === 'base') {
+                handleStyleUpdate(property, undefined);
+            }
         } else {
             delete newStyleTokens[property];
         }
+
         updateNode(nodeId, { styleTokens: newStyleTokens });
-    }, [node?.styleTokens, nodeId, updateNode]);
+    }, [nodeData, nodeId, updateNode, activeState, activeBreakpoint, handleStyleUpdate]);
 
-    // Helper to update an override value
-    const handleOverrideChange = useCallback((property: string, value: string) => {
-        const newOverrides = node?.styleOverrides ? { ...node.styleOverrides } : { base: {} };
-        if (!newOverrides[activeBreakpoint]) {
-            newOverrides[activeBreakpoint] = {};
-        }
+    const handleReset = useCallback((property: string) => {
+        handleStyleUpdate(property, undefined);
+    }, [handleStyleUpdate]);
 
-        // If value is empty, remove the override
-        if (!value) {
-            delete (newOverrides[activeBreakpoint] as any)[property];
-            // Cleanup empty breakpoint objects
-            if (Object.keys(newOverrides[activeBreakpoint]!).length === 0) {
-                delete newOverrides[activeBreakpoint];
-            }
-        } else {
-            (newOverrides[activeBreakpoint] as any)[property] = value;
-        }
-
-        updateNode(nodeId, { styleOverrides: newOverrides });
-    }, [node?.styleOverrides, activeBreakpoint, nodeId, updateNode]);
-
-    const renderPropertyInput = (property: string, label: string) => {
-        // 1. Check if bound to a token
-        const tokenPath = node.styleTokens?.[property];
-        const isTokenBound = !!tokenPath;
-
-        // 2. Check if has override for current breakpoint
-        const overrideValue = node.styleOverrides?.[activeBreakpoint]?.[property];
-
-        // 3. Resolve effective value for display
-        // If override exists, it wins. Else if token exists, resolve it.
-        const resolvedTokenValue = tokenPath ? resolveTokenPath(tokenPath, theme as unknown as DesignTokenMap) : undefined;
-        const displayValue = overrideValue ?? resolvedTokenValue ?? '';
-
-        return (
-            <div key={property} className="mb-3">
-                <div className="flex items-center justify-between mb-1.5">
-                    <Label className="text-xs text-muted-foreground">{label}</Label>
-                    {isTokenBound && (
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 rounded-sm flex items-center">
-                                <LinkIcon className="w-2.5 h-2.5 mr-1" />
-                                {tokenPath}
-                            </span>
-                            {/* Option to detach token */}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-4 w-4 p-0 hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => handleTokenChange(property, '')}
-                                title="Detach token"
-                            >
-                                <X className="w-3 h-3" />
-                            </Button>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex gap-2">
-                    {/* Token Picker Trigger */}
-                    {!overrideValue && (
-                        <div className="w-8 shrink-0">
-                            <TokenPicker
-                                theme={theme as unknown as DesignTokenMap}
-                                value={tokenPath}
-                                onChange={(path) => handleTokenChange(property, path)}
-                                trigger={
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-8 h-8 p-0"
-                                        title="Pick generic token"
-                                    >
-                                        <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                                    </Button>
-                                }
-                            />
-                        </div>
-                    )}
-
-                    {/* Manual Input (Override) */}
-                    <Input
-                        className={`h-8 text-xs ${overrideValue ? 'border-primary/50 bg-primary/5' : ''}`}
-                        value={displayValue}
-                        placeholder={isTokenBound ? 'Token value...' : 'unset'}
-                        onChange={(e) => handleOverrideChange(property, e.target.value)}
-                    />
-                </div>
-            </div>
-        );
-    };
+    if (!nodeData) {
+        return <div className="p-8 text-center text-sm text-muted-foreground">Select an element to style</div>;
+    }
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Breakpoint Tabs */}
-            <div className="p-2 border-b bg-muted/40">
-                <Tabs value={activeBreakpoint} onValueChange={(v) => setActiveBreakpoint(v as Breakpoint)}>
-                    <TabsList className="w-full grid grid-cols-5 h-8">
-                        {BREAKPOINTS.map((bp) => (
-                            <TabsTrigger key={bp.id} value={bp.id} className="text-[10px] px-0 h-7">
-                                <bp.icon className="w-3 h-3 md:mr-1" />
-                                <span className="hidden md:inline">{bp.label}</span>
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </Tabs>
-                {activeBreakpoint !== 'base' && (
-                    <div className="mt-2 text-[10px] text-amber-600 flex items-center justify-center bg-amber-50 py-1 rounded border border-amber-100">
-                        Editing {activeBreakpoint} overrides only (inherits from base)
+        <div className="flex flex-col h-full bg-background">
+            {/* Header: State & Breakpoint */}
+            <div className="flex flex-col border-b bg-muted/20">
+                {/* State Selector */}
+                <div className="px-2 py-2 flex items-center gap-2">
+                    <Select
+                        value={activeState}
+                        onValueChange={(v) => setActiveState(v as ElementState)}
+                    >
+                        <SelectTrigger className="h-8 text-xs w-full bg-background border-muted-foreground/20">
+                            <div className="flex items-center gap-2">
+                                {React.createElement(STATES.find(s => s.id === activeState)?.icon || Monitor, { className: "w-3.5 h-3.5" })}
+                                <span>{STATES.find(s => s.id === activeState)?.label}</span>
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {STATES.map(state => (
+                                <SelectItem key={state.id} value={state.id} className="text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <state.icon className="w-3.5 h-3.5" />
+                                        <span>{state.label}</span>
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Breakpoint Selector - Only visible/active in Default State */}
+                {activeState === 'default' && (
+                    <div className="px-1 pb-2">
+                        <Tabs value={activeBreakpoint} onValueChange={(v) => setActiveBreakpoint(v as Breakpoint)}>
+                            <TabsList className="w-full grid grid-cols-5 h-7 p-0 bg-transparent">
+                                {BREAKPOINTS.map((bp) => (
+                                    <TabsTrigger
+                                        key={bp.id}
+                                        value={bp.id}
+                                        className="h-7 text-[10px] px-0 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                                        title={bp.label}
+                                    >
+                                        <bp.icon className="w-3.5 h-3.5" />
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                )}
+
+                {/* Context Indicator */}
+                {activeState !== 'default' && (
+                    <div className="px-2 pb-2 text-[10px] text-amber-600 bg-amber-50/50 flex items-center gap-1.5 mx-2 mb-2 rounded border border-amber-100/50">
+                        <Zap className="w-3 h-3" />
+                        Editing global {activeState} styles
                     </div>
                 )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-                {/* Layout Section */}
-                <div className="mb-6">
-                    <h3 className="text-xs font-semibold mb-3 tracking-wide text-foreground/80">Layout</h3>
-                    <div className="grid grid-cols-2 gap-x-4">
-                        {renderPropertyInput('display', 'Display')}
-                        {renderPropertyInput('gap', 'Gap')}
-                        {renderPropertyInput('padding', 'Padding')}
-                        {renderPropertyInput('margin', 'Margin')}
-                    </div>
-                </div>
+            {/* Scrollable Content */}
+            <ScrollArea className="flex-1">
+                <div className="p-4 space-y-6 pb-20">
+                    <DimensionsSection
+                        values={effectiveStyles}
+                        overrides={currentLayerOverrides}
+                        tokens={nodeData.styleTokens}
+                        theme={theme as unknown as DesignTokenMap}
+                        onChange={handleStyleUpdate}
+                        onTokenChange={handleTokenChange}
+                        onReset={handleReset}
+                    />
 
-                {/* Typography Section */}
-                <div className="mb-6">
-                    <h3 className="text-xs font-semibold mb-3 tracking-wide text-foreground/80">Typography</h3>
-                    <div className="grid grid-cols-1 gap-x-4">
-                        {renderPropertyInput('color', 'Color')}
-                        {renderPropertyInput('fontSize', 'Size')}
-                        {renderPropertyInput('fontWeight', 'Weight')}
-                        {renderPropertyInput('textAlign', 'Align')}
-                    </div>
-                </div>
+                    <TypographySection
+                        values={effectiveStyles}
+                        overrides={currentLayerOverrides}
+                        tokens={nodeData.styleTokens}
+                        theme={theme as unknown as DesignTokenMap}
+                        onChange={handleStyleUpdate}
+                        onTokenChange={handleTokenChange}
+                        onReset={handleReset}
+                    />
 
-                {/* Appearance Section */}
-                <div className="mb-6">
-                    <h3 className="text-xs font-semibold mb-3 tracking-wide text-foreground/80">Appearance</h3>
-                    <div className="grid grid-cols-1 gap-x-4">
-                        {renderPropertyInput('backgroundColor', 'Background')}
-                        {renderPropertyInput('borderRadius', 'Radius')}
-                        {renderPropertyInput('boxShadow', 'Shadow')}
-                        {renderPropertyInput('opacity', 'Opacity')}
-                    </div>
-                </div>
+                    <BackgroundSection
+                        values={effectiveStyles}
+                        overrides={currentLayerOverrides}
+                        tokens={nodeData.styleTokens}
+                        theme={theme as unknown as DesignTokenMap}
+                        onChange={handleStyleUpdate}
+                        onTokenChange={handleTokenChange}
+                        onReset={handleReset}
+                    />
 
-                {/* Dimensions Section */}
-                <div className="mb-6">
-                    <h3 className="text-xs font-semibold mb-3 tracking-wide text-foreground/80">Dimensions</h3>
-                    <div className="grid grid-cols-2 gap-x-4">
-                        {renderPropertyInput('width', 'Width')}
-                        {renderPropertyInput('height', 'Height')}
-                    </div>
+                    <BorderSection
+                        values={effectiveStyles}
+                        overrides={currentLayerOverrides}
+                        tokens={nodeData.styleTokens}
+                        theme={theme as unknown as DesignTokenMap}
+                        onChange={handleStyleUpdate}
+                        onTokenChange={handleTokenChange}
+                        onReset={handleReset}
+                    />
+
+                    <EffectsSection
+                        values={effectiveStyles}
+                        overrides={currentLayerOverrides}
+                        tokens={nodeData.styleTokens}
+                        theme={theme as unknown as DesignTokenMap}
+                        onChange={handleStyleUpdate}
+                        onTokenChange={handleTokenChange}
+                        onReset={handleReset}
+                    />
                 </div>
-            </div>
+            </ScrollArea>
         </div>
     );
 }

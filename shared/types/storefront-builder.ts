@@ -9,15 +9,14 @@ export interface StorefrontNode {
     id: string;
     type: string;
     props: Record<string, unknown>;
+    children?: StorefrontNode[];
+    hidden?: boolean;
+    locked?: boolean;
+    // V1 legacy styles (deprecated but still supported for migration)
     /** @deprecated Use styleTokens + styleOverrides instead */
     styles?: StyleObject;
     /** @deprecated Use bindingMap instead */
     bindings?: Record<string, string>;
-    /** @deprecated Use actionMap instead */
-    actions?: Record<string, ActionRef>;
-    children?: StorefrontNode[];
-    hidden?: boolean;
-    locked?: boolean;
     // --- V2 Architecture fields ---
     /** Binding map: prop key → BindingExpr (replaces string bindings) */
     bindingMap?: Record<string, BindingExpr>;
@@ -85,7 +84,16 @@ export interface ThemeVars {
  */
 export interface PrefabInstanceProps {
     prefabKey: string;
+    prefabVersion?: string;
     overrides?: PrefabOverrides;
+    slotContent?: PrefabSlotContent;
+}
+
+/**
+ * Prefab Slot Content — nodes injected into named slots of a prefab instance
+ */
+export interface PrefabSlotContent {
+    [slotName: string]: StorefrontNode[];
 }
 
 /**
@@ -95,8 +103,10 @@ export interface PrefabInstanceProps {
 export interface PrefabOverrides {
     [childId: string]: {
         props?: Record<string, unknown>;
-        styles?: StyleObject;
-        bindings?: Record<string, string>;
+        styleOverrides?: ResponsiveStyleOverrides;
+        styleTokens?: StyleTokenMap;
+        bindingMap?: Record<string, BindingExpr>;
+        actionMap?: Record<string, ActionPipeline>;
         hidden?: boolean;
     };
 }
@@ -119,7 +129,9 @@ export type ActionID =
     | 'PLACE_ORDER'
     | 'NAVIGATE'
     | 'UPDATE_UI_STATE'
-    | 'SUBMIT_FORM';
+    | 'SUBMIT_FORM'
+    | 'OAUTH_LOGIN'
+    | 'opencartsidebar';
 
 /**
  * ActionRef - declarative action reference
@@ -140,8 +152,9 @@ export interface StoreContext {
     name: string;
     slug: string;
     currency: string;
-    requirePhoneNumber: boolean;
+    requirePhoneNumber?: boolean;
     logoUrl?: string;
+    paymentMethods?: Record<string, boolean>;
 }
 
 /**
@@ -221,9 +234,11 @@ export interface ProductContext {
     id: string;
     name: string;
     description?: string;
+    href?: string;
     image?: string; // Main image fallback
     images: ImageContext[];
     variants: VariantContext[];
+    defaultVariant?: VariantContext;
     customData?: Record<string, unknown>;
     productSchemaId?: string;
     categoryId?: string;
@@ -268,6 +283,7 @@ export interface FacetContext {
     code: string;
     name: string;
     values: FacetValueContext[];
+    productSchemaId?: string;
 }
 
 export interface FacetValueContext {
@@ -367,19 +383,21 @@ export interface ComponentDefinition {
     constraints: ComponentConstraints;
     defaults: {
         props: Record<string, unknown>;
-        styles?: StyleObject;
-        bindings?: Record<string, string>;
-        actions?: Record<string, ActionRef>;
+        styleOverrides?: ResponsiveStyleOverrides;
+        bindingMap?: Record<string, BindingExpr>;
+        actionMap?: Record<string, ActionPipeline>;
         children?: StorefrontNode[];
     };
 }
 
-export type ControlType = 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'color' | 'image' | 'icon' | 'style-select' | 'productSchema';
+export type ControlType = 'text' | 'textarea' | 'number' | 'boolean' | 'select' | 'color' | 'image' | 'icon' | 'style-select' | 'productSchema' | 'prefab';
 
 export interface ControlDefinition {
     type: ControlType;
     label?: string;
     options?: { label: string; value: string }[] | string[];
+    prefabType?: string; // e.g. 'productcard', 'cartsidebar'
+
     min?: number;
     max?: number;
     step?: number;
@@ -621,20 +639,44 @@ export interface ComponentContract {
     icon?: string;
     contractVersion: number;
     propsSchema: unknown;
-    controls?: Record<string, ControlDefinition>;
-    bindingSlots?: Record<string, { expectedType: string; description?: string }>;
-    eventSlots?: string[];
+    /** Inspector controls — required. Empty Record means "use generic fallback" */
+    controls: Record<string, ControlDefinition>;
+    /** Binding slots: which props can be bound to data */
+    bindingSlots: Record<string, BindingSlotDefinition>;
+    /** Event slots: which events can trigger action pipelines */
+    eventSlots: string[];
     constraints: ComponentConstraints;
-    requiredCapabilities?: ('cart' | 'user' | 'collection' | 'product' | 'orders' | 'facets')[];
+    requiredCapabilities?: ComponentCapability[];
     renderMode: 'ssr' | 'csr' | 'hybrid';
-    defaults: {
-        props: Record<string, unknown>;
-        styleTokens?: StyleTokenMap;
-        styleOverrides?: ResponsiveStyleOverrides;
-        bindingMap?: Record<string, BindingExpr>;
-        actionMap?: Record<string, ActionPipeline>;
-        children?: StorefrontNode[];
-    };
+    defaults: ComponentDefaults;
+    /** Preview hints for the canvas (placeholder image, min-size, etc.) */
+    previewHints?: PreviewHints;
+}
+
+export interface BindingSlotDefinition {
+    expectedType: 'string' | 'number' | 'boolean' | 'object' | 'array' | 'any';
+    description?: string;
+    suggestedPath?: string;
+}
+
+export interface PreviewHints {
+    minWidth?: number;
+    minHeight?: number;
+    placeholderImage?: string;
+    showPlaceholder?: boolean;
+}
+
+export type ComponentCapability =
+    | 'cart' | 'user' | 'collection' | 'product'
+    | 'orders' | 'facets' | 'checkout' | 'auth';
+
+export interface ComponentDefaults {
+    props: Record<string, unknown>;
+    styleTokens?: StyleTokenMap;
+    styleOverrides?: ResponsiveStyleOverrides;
+    bindingMap?: Record<string, BindingExpr>;
+    actionMap?: Record<string, ActionPipeline>;
+    children?: StorefrontNode[];
 }
 
 // -------------------- PREFAB V2 --------------------
@@ -665,6 +707,7 @@ export interface PrefabOverrideSchema {
     allowedProps?: Record<string, string[]>;
     allowStyleOverrides?: Record<string, boolean>;
     allowBindingOverrides?: Record<string, boolean>;
+    allowActionOverrides?: Record<string, boolean>;
 }
 
 export interface PrefabChangelogEntry {
@@ -831,6 +874,8 @@ export type EditorCommand =
     | { type: 'UPDATE_STYLE_OVERRIDES'; nodeId: string; overrides: ResponsiveStyleOverrides }
     | { type: 'UPDATE_ACTIONS'; nodeId: string; actionMap: Record<string, ActionPipeline> }
     | { type: 'SET_HIDDEN'; nodeId: string; hidden: boolean }
+    | { type: 'UPDATE_PREFAB_OVERRIDE'; instanceNodeId: string; childId: string; override: Partial<PrefabOverrides[string]> }
+    | { type: 'DETACH_PREFAB'; instanceNodeId: string }
     | { type: 'BATCH'; commands: EditorCommand[] };
 
 export interface CommandResult {

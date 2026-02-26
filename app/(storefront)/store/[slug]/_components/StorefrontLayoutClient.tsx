@@ -20,15 +20,14 @@ interface StorefrontLayoutClientProps {
     themeVars: Record<string, string>;
 }
 
+// Initialize component registry for SSR and Client
+initializeRegistry();
+
 export function StorefrontLayoutClient({
     children,
     store,
     themeVars,
 }: StorefrontLayoutClientProps) {
-    // Initialize component registry
-    useEffect(() => {
-        initializeRegistry();
-    }, []);
 
     // Build scoped CSS custom properties string
     const cssVarsStyle = useMemo(() => {

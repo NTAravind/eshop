@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import type { CSSProperties } from 'react';
-import type { StyleObject } from '@/types/storefront-builder';
+import type { StyleObject, ResponsiveStyleOverrides, SafeCSSProperties } from '@/types/storefront-builder';
 
 /**
  * Convert camelCase CSS properties to kebab-case CSS string
@@ -11,7 +11,7 @@ function camelToKebab(str: string): string {
     return str.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
 }
 
-function cssPropsToString(props: CSSProperties): string {
+function cssPropsToString(props: CSSProperties | Record<string, string>): string {
     return Object.entries(props)
         .filter(([_, value]) => value !== undefined && value !== '')
         .map(([key, value]) => {
@@ -27,27 +27,47 @@ function cssPropsToString(props: CSSProperties): string {
 /**
  * Hook to inject dynamic styles for pseudo-states (hover, focus, active)
  * Returns a unique class name to apply to the element
+ * 
+ * Supports both V1 StyleObject and V2 ResponsiveStyleOverrides
  */
-export function useDynamicStyles(nodeId: string, styles?: StyleObject): string {
+export function useDynamicStyles(
+    nodeId: string, 
+    v1Styles?: StyleObject,
+    v2Overrides?: ResponsiveStyleOverrides
+): string {
     const className = `s-${nodeId}`;
 
     const cssRules = useMemo(() => {
-        if (!styles) return '';
-
         let css = '';
 
-        if (styles.hover && Object.keys(styles.hover).length > 0) {
-            css += `.${className}:hover { ${cssPropsToString(styles.hover)} } `;
+        // Check if we have V2 overrides (prefer V2)
+        if (v2Overrides) {
+            if (v2Overrides.hover && Object.keys(v2Overrides.hover).length > 0) {
+                css += `.${className}:hover { ${cssPropsToString(v2Overrides.hover)} } `;
+            }
+            if (v2Overrides.focus && Object.keys(v2Overrides.focus).length > 0) {
+                css += `.${className}:focus { ${cssPropsToString(v2Overrides.focus)} } `;
+            }
+            if (v2Overrides.active && Object.keys(v2Overrides.active).length > 0) {
+                css += `.${className}:active { ${cssPropsToString(v2Overrides.active)} } `;
+            }
         }
-        if (styles.focus && Object.keys(styles.focus).length > 0) {
-            css += `.${className}:focus { ${cssPropsToString(styles.focus)} } `;
-        }
-        if (styles.active && Object.keys(styles.active).length > 0) {
-            css += `.${className}:active { ${cssPropsToString(styles.active)} } `;
+        
+        // Fall back to V1 styles if no V2 overrides for states
+        if ((!v2Overrides || (!v2Overrides.hover && !v2Overrides.focus && !v2Overrides.active)) && v1Styles) {
+            if (v1Styles.hover && Object.keys(v1Styles.hover).length > 0) {
+                css += `.${className}:hover { ${cssPropsToString(v1Styles.hover)} } `;
+            }
+            if (v1Styles.focus && Object.keys(v1Styles.focus).length > 0) {
+                css += `.${className}:focus { ${cssPropsToString(v1Styles.focus)} } `;
+            }
+            if (v1Styles.active && Object.keys(v1Styles.active).length > 0) {
+                css += `.${className}:active { ${cssPropsToString(v1Styles.active)} } `;
+            }
         }
 
         return css;
-    }, [styles, className]);
+    }, [v1Styles, v2Overrides, className]);
 
     useEffect(() => {
         if (!cssRules) return;
@@ -69,9 +89,6 @@ export function useDynamicStyles(nodeId: string, styles?: StyleObject): string {
 
         // Cleanup on unmount
         return () => {
-            // Optional: don't remove immediately to avoid flickering / re-layout thrashing
-            // or if we want to persist styles for re-mounting.
-            // For now, let's keep it simple and clean up.
             const tag = document.getElementById(styleId);
             if (tag) {
                 tag.remove();

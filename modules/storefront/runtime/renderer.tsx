@@ -6,19 +6,28 @@
  */
 
 import React, { useMemo, useEffect, useState } from 'react';
-import type { StorefrontNode, BindingContext, RepeaterScope, PrefabOverrides } from '@/types/storefront-builder';
+import type { CSSProperties } from 'react';
+import type {
+    StorefrontNode,
+    BindingContext,
+    RepeaterScope,
+    PrefabOverrides,
+    ResponsiveStyleOverrides,
+    ActionPipeline,
+    StyleTokenMap,
+} from '@/types/storefront-builder';
 import { useRuntimeContext } from './context';
-import { resolveBindings } from '../bindings';
-import { resolveStyles, getCurrentBreakpoint, mergeStyles } from '../styles';
+import { resolveNodeBindings } from '../bindings';
+import { getCurrentBreakpoint, resolveStyles } from '../styles';
+import { resolveNodeStyles, resolveOverridesOnly } from '../tokens';
 import { useDynamicStyles } from './style-injector';
 import { getComponent, isValidComponent } from '../registry';
+import { useTheme } from './providers';
 
 type Breakpoint = ReturnType<typeof getCurrentBreakpoint>;
 
 function useBreakpoint(): Breakpoint {
-    const [breakpoint, setBreakpoint] = useState<Breakpoint>(() =>
-        typeof window !== 'undefined' ? getCurrentBreakpoint(window.innerWidth) : 'base'
-    );
+    const [breakpoint, setBreakpoint] = useState<Breakpoint>('base');
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -76,10 +85,34 @@ class NodeErrorBoundary extends React.Component<
 }
 
 /**
+ * Create a simple merge of responsive overrides
+ */
+function mergeResponsiveOverrides(
+    a: ResponsiveStyleOverrides | undefined,
+    b: ResponsiveStyleOverrides | undefined
+): ResponsiveStyleOverrides {
+    if (!a) return b || {};
+    if (!b) return a;
+
+    const merged: ResponsiveStyleOverrides = {};
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof ResponsiveStyleOverrides>;
+
+    for (const key of keys) {
+        if (a[key] && b[key]) {
+            merged[key] = { ...a[key], ...b[key] };
+        } else {
+            merged[key] = (a[key] || b[key]) as any;
+        }
+    }
+    return merged;
+}
+
+/**
  * Render a single node with resolved bindings and styles
  */
 function RenderNode({ node, context, breakpoint }: { node: StorefrontNode; context: BindingContext; breakpoint: Breakpoint }) {
-    const { createHandler } = useRuntimeContext();
+    const { createHandler, dispatchPipeline } = useRuntimeContext();
+    const theme = useTheme();
 
     // Skip hidden nodes
     if (node.hidden) return null;
@@ -97,10 +130,33 @@ function RenderNode({ node, context, breakpoint }: { node: StorefrontNode; conte
         return <RenderPrefab node={node} context={context} breakpoint={breakpoint} />;
     }
 
-    // Skip unknown components
+    // Render unknown components as a visible placeholder
     if (!isValidComponent(node.type)) {
-        console.warn(`Unknown component type: ${node.type}`);
-        return null;
+        const children = node.children
+            ?.filter((child) => !child.hidden)
+            .map((child, index) => (
+                <RenderNode key={child.id || index} node={child} context={context} breakpoint={breakpoint} />
+            ));
+
+        return (
+            <NodeErrorBoundary nodeId={node.id} nodeType={node.type}>
+                <div
+                    data-node-id={node.id}
+                    style={{
+                        border: '1px dashed var(--destructive, #ef4444)',
+                        padding: '8px',
+                        minHeight: '32px',
+                        opacity: 0.6,
+                        borderRadius: '4px',
+                    }}
+                >
+                    <span style={{ fontSize: '12px', color: 'var(--muted-foreground, #888)' }}>
+                        Unknown: {node.type}
+                    </span>
+                    {children}
+                </div>
+            </NodeErrorBoundary>
+        );
     }
 
     // Get the component from registry
@@ -109,22 +165,39 @@ function RenderNode({ node, context, breakpoint }: { node: StorefrontNode; conte
         return null;
     }
 
-    // Resolve bindings
-    const resolvedProps = resolveBindings(node.props, node.bindings, context);
+    // Resolve bindings (V2)
+    const resolvedProps = resolveNodeBindings(node, context);
 
-    // Resolve styles (using base breakpoint for SSR, client updates later)
-    const resolvedStyles = resolveStyles(node.styles, breakpoint);
+    // Resolve styles (V2 with theme, V2 overrides-only without theme, or V1 fallback)
+    let resolvedStyles: CSSProperties = {};
+    if (theme?.theme) {
+        resolvedStyles = resolveNodeStyles(node, theme.theme, breakpoint);
+    } else if (node.styleOverrides) {
+        // V2 overrides without theme - apply directly
+        resolvedStyles = resolveOverridesOnly(node.styleOverrides, breakpoint);
+    }
+    // Fall back to V1 if still empty
+    if (Object.keys(resolvedStyles).length === 0 && node.styles?.base) {
+        resolvedStyles = resolveStyles(node.styles, breakpoint);
+    }
 
-    // Create action handlers
-    const actionHandlers: Record<string, () => Promise<void>> = {};
-    if (node.actions) {
-        for (const [slot, action] of Object.entries(node.actions)) {
-            actionHandlers[slot] = createHandler(action, context);
+    // Create action handlers (V2 pipelines)
+    const actionHandlers: Record<string, (...args: any[]) => Promise<void>> = {};
+    if (node.actionMap) {
+        for (const [slot, pipeline] of Object.entries(node.actionMap)) {
+            actionHandlers[slot] = async (...args: any[]) => {
+                const eventContext = {
+                    ...context,
+                    $event: args.length > 0 ? (args.length === 1 ? args[0] : args) : undefined
+                };
+                await dispatchPipeline(pipeline, eventContext);
+            };
         }
     }
 
     // Inject dynamic styles (hover, focus, active)
-    const dynamicClassName = useDynamicStyles(node.id, node.styles);
+    // Pass both V1 and V2 styles - hook prefers V2
+    const dynamicClassName = useDynamicStyles(node.id, node.styles, node.styleOverrides);
 
     // Render children (skip hidden children)
     const children = node.children
@@ -161,8 +234,14 @@ function RenderRepeater({
     context: BindingContext;
     breakpoint: Breakpoint;
 }) {
-    const items = resolveBindings({ items: '' }, { items: node.props.dataPath as string }, context)
-        .items as unknown[];
+    // Repeater uses explicit dataPath property, not bindingMap usually, but we should respect resolvedProps
+    // However, the standard is props.dataPath. 
+    // We resolve bindings for the node first to get dynamic dataPath if needed?
+    // Actually, resolveNodeBindings handles props.
+
+    // For now, assume dataPath is in props or resolved via bindings
+    const resolvedProps = resolveNodeBindings(node, context);
+    const items = resolvedProps.items as unknown[];
 
     if (!Array.isArray(items)) {
         return null;
@@ -208,11 +287,8 @@ function RenderConditional({
     context: BindingContext;
     breakpoint: Breakpoint;
 }) {
-    const condition = resolveBindings(
-        { show: node.props.show },
-        node.bindings,
-        context
-    ).show;
+    const resolvedProps = resolveNodeBindings(node, context);
+    const condition = resolvedProps.show;
 
     if (!condition) {
         return null;
@@ -227,9 +303,6 @@ function RenderConditional({
     );
 }
 
-/**
- * Special handling for Prefab nodes
- */
 /**
  * Helper to apply overrides and namespace IDs for a prefab instance
  */
@@ -246,9 +319,14 @@ function applyOverrides(
     }
 
     // Merge styles if override exists
-    const mergedStyles = override?.styles
-        ? mergeStyles(node.styles, override.styles)
-        : node.styles;
+    const mergedStyleOverrides = override?.styleOverrides
+        ? mergeResponsiveOverrides(node.styleOverrides, override.styleOverrides)
+        : node.styleOverrides;
+
+    // Merge style tokens if override exists
+    const mergedStyleTokens = override?.styleTokens
+        ? { ...node.styleTokens, ...override.styleTokens } as StyleTokenMap
+        : node.styleTokens;
 
     // Merge props if override exists (shallow merge)
     // Also inject metadata for the editor to track selection back to the prefab instance
@@ -259,9 +337,14 @@ function applyOverrides(
     };
 
     // Merge bindings if override exists
-    const mergedBindings = override?.bindings
-        ? { ...node.bindings, ...override.bindings }
-        : node.bindings;
+    const mergedBindingMap = override?.bindingMap
+        ? { ...node.bindingMap, ...override.bindingMap }
+        : node.bindingMap;
+
+    // Merge action map if override exists
+    const mergedActionMap = override?.actionMap
+        ? { ...node.actionMap, ...override.actionMap }
+        : node.actionMap;
 
     // Namespace the ID to ensure uniqueness in the page
     const newId = `${instanceId}_${node.id}`;
@@ -275,8 +358,10 @@ function applyOverrides(
         ...node,
         id: newId,
         props: mergedProps,
-        styles: mergedStyles,
-        bindings: mergedBindings,
+        styleOverrides: mergedStyleOverrides,
+        styleTokens: mergedStyleTokens,
+        bindingMap: mergedBindingMap,
+        actionMap: mergedActionMap,
         children: newChildren,
     };
 }
@@ -355,8 +440,9 @@ export function RendererWithLayout({
     page: StorefrontNode;
     scope?: RepeaterScope;
 }) {
-    const { context, createHandler } = useRuntimeContext();
+    const { context, dispatchPipeline } = useRuntimeContext();
     const breakpoint = useBreakpoint();
+    const theme = useTheme();
 
     const bindingContext = useMemo<BindingContext>(
         () => (scope ? { ...context, __scope: scope } : context),
@@ -378,7 +464,24 @@ export function RendererWithLayout({
         }
 
         if (!isValidComponent(node.type)) {
-            return null;
+            return (
+                <div
+                    key={node.id}
+                    data-node-id={node.id}
+                    style={{
+                        border: '1px dashed var(--destructive, #ef4444)',
+                        padding: '8px',
+                        minHeight: '32px',
+                        opacity: 0.6,
+                        borderRadius: '4px',
+                    }}
+                >
+                    <span style={{ fontSize: '12px', color: 'var(--muted-foreground, #888)' }}>
+                        Unknown: {node.type}
+                    </span>
+                    {node.children?.map((child) => renderWithSlot(child))}
+                </div>
+            );
         }
 
         const Component = getComponent(node.type);
@@ -386,13 +489,23 @@ export function RendererWithLayout({
             return null;
         }
 
-        const resolvedProps = resolveBindings(node.props, node.bindings, bindingContext);
-        const resolvedStyles = resolveStyles(node.styles, breakpoint);
+        const resolvedProps = resolveNodeBindings(node, bindingContext);
 
-        const actionHandlers: Record<string, () => Promise<void>> = {};
-        if (node.actions) {
-            for (const [slot, action] of Object.entries(node.actions)) {
-                actionHandlers[slot] = createHandler(action, bindingContext);
+        // Resolve styles (V2 property check inside tokens.ts)
+        const resolvedStyles = theme?.theme
+            ? resolveNodeStyles(node, theme.theme, breakpoint)
+            : {};
+
+        const actionHandlers: Record<string, (...args: any[]) => Promise<void>> = {};
+        if (node.actionMap) {
+            for (const [slot, pipeline] of Object.entries(node.actionMap)) {
+                actionHandlers[slot] = async (...args: any[]) => {
+                    const eventContext = {
+                        ...bindingContext,
+                        $event: args.length > 0 ? (args.length === 1 ? args[0] : args) : undefined
+                    };
+                    await dispatchPipeline(pipeline, eventContext);
+                };
             }
         }
 

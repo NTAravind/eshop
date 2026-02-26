@@ -49,6 +49,6 @@ error/
 # IDEs
 .vscode
 .idea
-.agent/
+
 # Documentation
 # *.md # Commented out to allow README and docs 

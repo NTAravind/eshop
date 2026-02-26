@@ -14,6 +14,7 @@ import type {
     ResponsiveStyleOverrides,
     BindingExpr,
     ActionPipeline,
+    PrefabOverrides,
 } from '@/types/storefront-builder';
 import {
     findNodeById,
@@ -62,6 +63,12 @@ export function applyCommand(
 
         case 'SET_HIDDEN':
             return applySetHidden(newTree, command);
+
+        case 'UPDATE_PREFAB_OVERRIDE':
+            return applyUpdatePrefabOverride(newTree, command);
+
+        case 'DETACH_PREFAB':
+            return applyDetachPrefab(newTree, command);
 
         case 'BATCH':
             return applyBatch(tree, command);
@@ -299,6 +306,93 @@ function applySetHidden(
         success: true,
         snapshot: tree,
         inverse: { type: 'SET_HIDDEN', nodeId: cmd.nodeId, hidden: oldHidden },
+    };
+}
+
+function applyUpdatePrefabOverride(
+    tree: StorefrontNode,
+    cmd: Extract<EditorCommand, { type: 'UPDATE_PREFAB_OVERRIDE' }>
+): CommandResult {
+    const instanceNode = findNodeById(tree, cmd.instanceNodeId);
+    if (!instanceNode) {
+        return failure(tree, `Prefab instance "${cmd.instanceNodeId}" not found`);
+    }
+
+    if (instanceNode.type !== 'Prefab') {
+        return failure(tree, `Node "${cmd.instanceNodeId}" is not a Prefab instance`);
+    }
+
+    // Get or initialize overrides
+    const overrides = (instanceNode.props.overrides as PrefabOverrides) || {};
+    const oldOverride = overrides[cmd.childId] ? { ...overrides[cmd.childId] } : {};
+
+    // Merge the new override into the existing one
+    overrides[cmd.childId] = {
+        ...overrides[cmd.childId],
+        ...cmd.override,
+    };
+
+    instanceNode.props.overrides = overrides;
+
+    return {
+        success: true,
+        snapshot: tree,
+        inverse: {
+            type: 'UPDATE_PREFAB_OVERRIDE',
+            instanceNodeId: cmd.instanceNodeId,
+            childId: cmd.childId,
+            override: oldOverride,
+        },
+    };
+}
+
+function applyDetachPrefab(
+    tree: StorefrontNode,
+    cmd: Extract<EditorCommand, { type: 'DETACH_PREFAB' }>
+): CommandResult {
+    const parent = getParentNode(tree, cmd.instanceNodeId);
+    if (!parent || !parent.children) {
+        return failure(tree, `Prefab instance "${cmd.instanceNodeId}" not found`);
+    }
+
+    const index = parent.children.findIndex((c) => c.id === cmd.instanceNodeId);
+    if (index === -1) {
+        return failure(tree, `Prefab instance "${cmd.instanceNodeId}" not in parent`);
+    }
+
+    const instanceNode = parent.children[index];
+    if (instanceNode.type !== 'Prefab') {
+        return failure(tree, `Node "${cmd.instanceNodeId}" is not a Prefab instance`);
+    }
+
+    // Save the original Prefab node for inverse (re-insert)
+    const originalNode = cloneNode(instanceNode);
+
+    // Create a Container node to hold the detached children
+    // The prefab's children would be resolved at render time; for detach we
+    // convert the instance into a simple Container with the same ID
+    const detachedContainer: StorefrontNode = {
+        id: instanceNode.id,
+        type: 'Container',
+        props: {},
+        styleOverrides: instanceNode.styleOverrides,
+        styleTokens: instanceNode.styleTokens,
+        children: instanceNode.children?.map(cloneNodeWithNewIds) ?? [],
+    };
+
+    // Replace the Prefab node with the detached Container
+    parent.children[index] = detachedContainer;
+
+    return {
+        success: true,
+        snapshot: tree,
+        inverse: {
+            type: 'BATCH',
+            commands: [
+                { type: 'REMOVE_NODE', nodeId: detachedContainer.id },
+                { type: 'INSERT_NODE', parentId: parent.id, index, node: originalNode },
+            ],
+        },
     };
 }
 

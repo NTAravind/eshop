@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import prisma from '../prisma';
+import { NextRequest } from 'next/server';
+import prisma from '../db/prisma';
 
 export interface ValidatedApiKey {
   keyId: string;
@@ -48,7 +49,7 @@ export async function validateApiKey(key: string): Promise<ValidatedApiKey> {
   prisma.apiKey.update({
     where: { id: apiKey.id },
     data: { lastUsedAt: new Date() },
-  }).catch(() => {}); // Silent fail on usage tracking
+  }).catch(() => { }); // Silent fail on usage tracking
 
   return {
     keyId: apiKey.keyId,

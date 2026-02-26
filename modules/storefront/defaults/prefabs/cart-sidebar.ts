@@ -1,4 +1,7 @@
 import type { StorefrontNode } from '@/types/storefront-builder';
+import { migrateStringBinding } from '../../binding-ast';
+import { migrateActionRef } from '../../actions/pipeline';
+import { cartItemCardPrefab } from './cart-item-card';
 
 /**
  * Schema-aware CartSidebar prefab
@@ -6,9 +9,9 @@ import type { StorefrontNode } from '@/types/storefront-builder';
  */
 export const cartSidebarPrefab: StorefrontNode = {
     id: 'CartSidebar_default',
-    type: 'Container',
+    type: 'CartSidebar',
     props: {},
-    styles: {
+    styleOverrides: {
         base: {
             width: '100%',
             maxWidth: '400px',
@@ -24,7 +27,7 @@ export const cartSidebarPrefab: StorefrontNode = {
             id: 'cart_header',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '1.5rem',
                     borderBottom: '1px solid var(--border)',
@@ -38,7 +41,7 @@ export const cartSidebarPrefab: StorefrontNode = {
                         level: 2,
                         text: 'Shopping Cart',
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '1.5rem',
                             fontWeight: '700',
@@ -49,10 +52,10 @@ export const cartSidebarPrefab: StorefrontNode = {
                     id: 'cart_item_count',
                     type: 'Text',
                     props: {},
-                    bindings: {
-                        text: 'cart.itemCount',
+                    bindingMap: {
+                        text: migrateStringBinding('cart.itemCount'),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             fontSize: '0.875rem',
                             color: 'var(--muted-foreground)',
@@ -67,7 +70,7 @@ export const cartSidebarPrefab: StorefrontNode = {
             id: 'cart_items_container',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     flex: 1,
                     overflowY: 'auto',
@@ -79,121 +82,14 @@ export const cartSidebarPrefab: StorefrontNode = {
                     id: 'cart_items_repeater',
                     type: 'Repeater',
                     props: {},
-                    bindings: {
-                        items: 'cart.items',
+                    bindingMap: {
+                        items: migrateStringBinding('cart.items'),
                     },
                     children: [
                         {
-                            id: 'cart_item',
-                            type: 'Row',
-                            props: {},
-                            styles: {
-                                base: {
-                                    display: 'flex',
-                                    gap: '1rem',
-                                    padding: '1rem 0',
-                                    borderBottom: '1px solid var(--border)',
-                                },
-                            },
-                            children: [
-                                {
-                                    id: 'cart_item_image',
-                                    type: 'Image',
-                                    props: {
-                                        alt: 'Product',
-                                    },
-                                    bindings: {
-                                        src: 'item.variant.images[0].url',
-                                        alt: 'item.product.name',
-                                    },
-                                    styles: {
-                                        base: {
-                                            width: '80px',
-                                            height: '80px',
-                                            objectFit: 'cover',
-                                            borderRadius: '0.375rem',
-                                        },
-                                    },
-                                },
-                                {
-                                    id: 'cart_item_details',
-                                    type: 'Column',
-                                    props: {},
-                                    styles: {
-                                        base: {
-                                            flex: 1,
-                                        },
-                                    },
-                                    children: [
-                                        {
-                                            id: 'cart_item_name',
-                                            type: 'Text',
-                                            props: {},
-                                            bindings: {
-                                                text: 'item.product.name',
-                                            },
-                                            styles: {
-                                                base: {
-                                                    fontWeight: '600',
-                                                    marginBottom: '0.25rem',
-                                                },
-                                            },
-                                        },
-                                        {
-                                            id: 'cart_item_variant',
-                                            type: 'Text',
-                                            props: {},
-                                    bindings: {
-                                        text: 'item.variant.sku',
-                                    },
-                                            styles: {
-                                                base: {
-                                                    fontSize: '0.875rem',
-                                                    color: 'var(--muted-foreground)',
-                                                    marginBottom: '0.5rem',
-                                                },
-                                            },
-                                        },
-                                        {
-                                            id: 'cart_item_qty_row',
-                                            type: 'Row',
-                                            props: {},
-                                            styles: {
-                                                base: {
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                },
-                                            },
-                                            children: [
-                                                {
-                                                    id: 'cart_item_quantity',
-                                                    type: 'QuantitySelector',
-                                                    props: {},
-                                                    bindings: {
-                                                        value: 'item.quantity',
-                                                        itemId: 'item.id',
-                                                    },
-                                                },
-                                                {
-                                                    id: 'cart_item_price',
-                                                    type: 'PriceDisplay',
-                                                    props: {},
-                                    bindings: {
-                                        price: 'item.lineTotal',
-                                        currency: 'store.currency',
-                                    },
-                                                    styles: {
-                                                        base: {
-                                                            fontWeight: '700',
-                                                        },
-                                                    },
-                                                },
-                                            ],
-                                        },
-                                    ],
-                                },
-                            ],
+                            // Use cart item card prefab as the template inside the repeater
+                            ...cartItemCardPrefab,
+                            id: 'cart_item_prefab',
                         },
                     ],
                 },
@@ -204,7 +100,7 @@ export const cartSidebarPrefab: StorefrontNode = {
             id: 'cart_footer',
             type: 'Container',
             props: {},
-            styles: {
+            styleOverrides: {
                 base: {
                     padding: '1.5rem',
                     borderTop: '1px solid var(--border)',
@@ -215,7 +111,7 @@ export const cartSidebarPrefab: StorefrontNode = {
                     id: 'cart_subtotal_row',
                     type: 'Row',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -230,7 +126,7 @@ export const cartSidebarPrefab: StorefrontNode = {
                             props: {
                                 text: 'Subtotal',
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontSize: '0.875rem',
                                     color: 'var(--muted-foreground)',
@@ -241,11 +137,11 @@ export const cartSidebarPrefab: StorefrontNode = {
                             id: 'cart_subtotal_value',
                             type: 'PriceDisplay',
                             props: {},
-                            bindings: {
-                                price: 'cart.subtotal',
-                                currency: 'store.currency',
+                            bindingMap: {
+                                price: migrateStringBinding('cart.subtotal'),
+                                currency: migrateStringBinding('store.currency'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontWeight: '600',
                                 },
@@ -257,7 +153,7 @@ export const cartSidebarPrefab: StorefrontNode = {
                     id: 'cart_total_row',
                     type: 'Row',
                     props: {},
-                    styles: {
+                    styleOverrides: {
                         base: {
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -274,7 +170,7 @@ export const cartSidebarPrefab: StorefrontNode = {
                             props: {
                                 text: 'Total',
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontSize: '1.125rem',
                                     fontWeight: '700',
@@ -285,11 +181,11 @@ export const cartSidebarPrefab: StorefrontNode = {
                             id: 'cart_total_value',
                             type: 'PriceDisplay',
                             props: {},
-                            bindings: {
-                                price: 'cart.total',
-                                currency: 'store.currency',
+                            bindingMap: {
+                                price: migrateStringBinding('cart.total'),
+                                currency: migrateStringBinding('store.currency'),
                             },
-                            styles: {
+                            styleOverrides: {
                                 base: {
                                     fontSize: '1.25rem',
                                     fontWeight: '700',
@@ -306,20 +202,45 @@ export const cartSidebarPrefab: StorefrontNode = {
                         text: 'Proceed to Checkout',
                         variant: 'primary',
                     },
-                    actions: {
-                        onClick: {
+                    actionMap: {
+                        onClick: migrateActionRef({
                             actionId: 'NAVIGATE',
                             payload: {
                                 to: '/checkout',
                             },
-                        },
+                        }),
                     },
-                    styles: {
+                    styleOverrides: {
                         base: {
                             width: '100%',
                             padding: '0.75rem',
                             fontSize: '1rem',
                             fontWeight: '600',
+                        },
+                    },
+                },
+                {
+                    id: 'cart_go_to_store_button',
+                    type: 'Button',
+                    props: {
+                        text: 'Go to Store',
+                        variant: 'outline',
+                    },
+                    actionMap: {
+                        onClick: migrateActionRef({
+                            actionId: 'NAVIGATE',
+                            payload: {
+                                to: '/collections',
+                            },
+                        }),
+                    },
+                    styleOverrides: {
+                        base: {
+                            width: '100%',
+                            padding: '0.75rem',
+                            fontSize: '1rem',
+                            fontWeight: '600',
+                            marginTop: '0.75rem',
                         },
                     },
                 },

@@ -236,18 +236,21 @@ interface FacetData {
     id: string;
     code: string;
     name: string;
+    productSchemaId?: string;
     values: Array<{ id: string; value: string; count?: number }>;
 }
 
 interface CollectionFiltersProps extends BaseComponentProps {
     facets?: FacetData[];
     activeFilters?: Record<string, string[]>;
+    productSchemaId?: string;
     onFilterChange?: (facetCode: string, values: string[]) => void;
 }
 
 function CollectionFilters({
     facets = [],
     activeFilters = {},
+    productSchemaId,
     onFilterChange,
     style,
     className,
@@ -259,9 +262,10 @@ function CollectionFilters({
     const searchParams = context?.route?.searchParams || {};
     const contextFacets = context?.facets?.facets || [];
     const effectiveFacets = facets.length > 0 ? facets : contextFacets;
+    const displayFacets = productSchemaId ? effectiveFacets.filter((f) => !(f as any).productSchemaId || (f as any).productSchemaId === productSchemaId) : effectiveFacets;
     const filtersFromQuery: Record<string, string[]> = {};
 
-    effectiveFacets.forEach((facet) => {
+    displayFacets.forEach((facet) => {
         const raw = searchParams[facet.code];
         if (!raw) return;
         filtersFromQuery[facet.code] = Array.isArray(raw) ? raw : [raw];
@@ -291,7 +295,7 @@ function CollectionFilters({
 
         const params = new URLSearchParams();
         const reservedParams = new Set(['page', 'limit', 'q', 'category', 'schemaId']);
-        const facetCodes = new Set(effectiveFacets.map((f) => f.code));
+        const facetCodes = new Set(displayFacets.map((f) => f.code));
 
         Object.entries(searchParams).forEach(([key, val]) => {
             if (key === 'page') return;
@@ -330,13 +334,13 @@ function CollectionFilters({
             className={className}
             {...rest}
         >
-            {effectiveFacets.map((facet) => (
+            {displayFacets.map((facet) => (
                 <div key={facet.id}>
                     <h4 style={{ fontWeight: 600, marginBottom: '0.75rem' }}>{facet.name}</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {facet.values.map((value) => {
                             const isActive = effectiveFilters[facet.code]?.includes(value.value);
-                            const displayLabel = value.label || value.value;
+                            const displayLabel = (value as any).label || value.value;
                             return (
                                 <label
                                     key={value.id}
@@ -430,7 +434,7 @@ export function registerNavigationComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { storeName: 'My Store', logoUrl: '', logoPlacement: 'left', accountLabel: 'Account' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -449,7 +453,7 @@ export function registerNavigationComponents() {
         constraints: { canHaveChildren: true },
         defaults: {
             props: { label: 'Link', href: '#' },
-            styles: {},
+            styleOverrides: {},
             children: [],
         },
     });
@@ -469,7 +473,7 @@ export function registerNavigationComponents() {
                     { label: 'About', href: '/about' },
                 ],
             },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -488,20 +492,26 @@ export function registerNavigationComponents() {
                     { label: 'Product' },
                 ],
             },
-            styles: {},
+            styleOverrides: {},
         },
     });
 
     registerComponent('CollectionFilters', CollectionFilters as React.ComponentType<BaseComponentProps & Record<string, unknown>>, {
         type: 'CollectionFilters',
-        displayName: 'Filters',
+        displayName: 'Collection Filters',
         category: 'navigation',
         icon: 'Filter',
-        propsSchema: {},
+        propsSchema: {
+            productSchemaId: { type: 'productSchema', label: 'Filter by Product Type' },
+        },
+        controls: {
+            productSchemaId: { type: 'productSchema', label: 'Filter by Product Type' },
+        },
+        actionSlots: ['onFilterChange'],
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 
@@ -514,7 +524,7 @@ export function registerNavigationComponents() {
         constraints: { canHaveChildren: false },
         defaults: {
             props: {},
-            styles: {},
+            styleOverrides: {},
         },
     });
 }
